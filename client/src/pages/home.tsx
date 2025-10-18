@@ -48,7 +48,7 @@ export default function Home() {
 
       <div className="px-4 py-6 space-y-6">
         {/* Action Buttons */}
-        <div className="space-y-6">
+        <div>
           <div className="grid grid-cols-2 gap-4">
             <Link href="/prendre">
               <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--teal-principal))] hover:bg-[hsl(var(--teal-principal))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-prendre">
@@ -64,7 +64,7 @@ export default function Home() {
             </Link>
           </div>
           <Link href="/stock">
-            <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--beige-terre))]/80 hover:bg-[hsl(var(--beige-terre))]/70 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-stock">
+            <Button className="w-full h-24 flex-col gap-2 mt-6 bg-[hsl(var(--vert-clair))] hover:bg-[hsl(var(--vert-clair))]/90 text-foreground border border-border rounded-xl shadow-md" size="lg" data-testid="button-stock">
               <ClipboardList className="h-6 w-6" />
               <span className="text-base font-medium">STOCK</span>
             </Button>
