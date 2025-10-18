@@ -171,8 +171,11 @@ export default function Deposer() {
     }
   };
 
-  // Tab 3: Filter products by category and sous-section
+  // Tab 3: Filter products by search query or category/sous-section
   const filteredProducts = products.filter((p) => {
+    if (searchQuery) {
+      return p.nom.toLowerCase().includes(searchQuery.toLowerCase());
+    }
     if (viewMode === "produits" && selectedCategorie && selectedSousSection) {
       return p.categorie === selectedCategorie && p.sousSection === selectedSousSection;
     }
@@ -559,6 +562,21 @@ export default function Deposer() {
 
           {/* TAB 3: AJOUTER DU STOCK */}
           <TabsContent value="ajouter-stock" className="space-y-4">
+            {/* Barre de recherche */}
+            {!showNewProductForm && !selectedProduct && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Rechercher un produit..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 min-h-touch"
+                  data-testid="input-search-product"
+                />
+              </div>
+            )}
+
             {showNewProductForm ? (
               /* Formulaire de création de produit */
               <CreateProductForm
@@ -630,6 +648,40 @@ export default function Deposer() {
                 >
                   {addDepositToListeMutation.isPending ? "Ajout..." : "Ajouter à ma liste"}
                 </Button>
+              </div>
+            ) : searchQuery ? (
+              /* Résultats de recherche */
+              <div className="space-y-3">
+                {filteredProducts.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      Aucun produit trouvé pour "{searchQuery}"
+                    </CardContent>
+                  </Card>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <Card
+                      key={product.id}
+                      className="hover-elevate cursor-pointer"
+                      onClick={() => setSelectedProduct(product)}
+                      data-testid={`card-product-${product.id}`}
+                    >
+                      <CardContent className="py-4">
+                        <div className="flex items-center gap-3">
+                          <StockIndicatorDot status={product.stockStatus} />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold truncate">{product.nom}</h3>
+                            <p className="text-sm text-muted-foreground">{product.unite}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold">{product.stockActuel}</div>
+                            <div className="text-xs text-muted-foreground">stock</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </div>
             ) : viewMode === "categories" ? (
               /* Liste des catégories */

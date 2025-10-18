@@ -770,6 +770,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
 
+          // Update stock: only returned items go back to stock (not lost items)
+          if (item.quantite > 0) {
+            const product = await storage.getProduct(movement.produitId);
+            if (product) {
+              await storage.updateProduct(movement.produitId, {
+                stockActuel: product.stockActuel + item.quantite,
+              });
+            }
+          }
+
           results.push({ type: "rendre", movementId: movement.id });
         } else if (item.typeAction === "deposer") {
           // Deposit to stock
