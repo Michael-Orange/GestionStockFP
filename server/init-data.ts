@@ -85,8 +85,8 @@ export async function initializeData() {
           sousSection: SousSection,
           nom: Produit,
           unite: Unité,
-          stockActuel: Math.floor(Math.random() * 10) + 1, // Random initial stock 1-10
-          stockMinimum: Math.floor(Math.random() * 3) + 1, // Random min stock 1-3
+          stockActuel: 0, // Stock initial à 0
+          stockMinimum: 1, // Stock minimum par défaut
           statut: "valide",
           creePar: 3, // Michael (admin)
         });
@@ -102,82 +102,12 @@ export async function initializeData() {
     console.error("❌ Error importing CSV:", error);
   }
 
-  // 3. Create sample movements for demo
+  // 3. Ne pas créer de mouvements de test (données de production uniquement)
   try {
     const allMovements = await storage.getAllMovements();
-    
-    if (allMovements.length === 0) {
-      console.log("🔄 Creating sample movements...");
-      const products = await storage.getAllProducts();
-      
-      if (products.length >= 3) {
-        // Create 3 sample loans
-        const marteau = products.find(p => p.nom === "MARTEAU");
-        const pelle = products.find(p => p.nom === "PELLE");
-        const scie = products.find(p => p.nom === "SCIE A BOIS");
-
-        if (marteau) {
-          // Loan from 5 days ago (recent)
-          const date5DaysAgo = new Date();
-          date5DaysAgo.setDate(date5DaysAgo.getDate() - 5);
-          
-          await storage.createMovement({
-            utilisateurId: 1, // Marine
-            produitId: marteau.id,
-            quantite: 1,
-            type: "pret",
-            statut: "en_cours",
-            dateRetourPrevu: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
-          });
-        }
-
-        if (pelle) {
-          // Loan from 10 days ago (attention)
-          const date10DaysAgo = new Date();
-          date10DaysAgo.setDate(date10DaysAgo.getDate() - 10);
-          
-          await storage.createMovement({
-            utilisateurId: 4, // Cheikh
-            produitId: pelle.id,
-            quantite: 2,
-            type: "pret",
-            statut: "en_cours",
-            dateRetourPrevu: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-          });
-        }
-
-        if (scie) {
-          // Loan from 20 days ago (retard!)
-          const date20DaysAgo = new Date();
-          date20DaysAgo.setDate(date20DaysAgo.getDate() - 20);
-          
-          await storage.createMovement({
-            utilisateurId: 2, // Fatou
-            produitId: scie.id,
-            quantite: 1,
-            type: "pret",
-            statut: "en_cours",
-            dateRetourPrevu: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago (overdue)
-          });
-
-          // Create alert for late return
-          await storage.createAlert({
-            type: "retard_emprunt",
-            mouvementId: 3,
-            produitId: scie.id,
-            utilisateurCibleId: 1, // Alert for Marine (stock manager)
-            message: `Fatou n'a pas encore rendu: ${scie.nom} (en retard de 5 jours)`,
-            lue: 0,
-          });
-        }
-
-        console.log("✅ Sample movements created: 3");
-      }
-    } else {
-      console.log(`✅ Movements already exist: ${allMovements.length}`);
-    }
+    console.log(`✅ Movements already exist: ${allMovements.length}`);
   } catch (error) {
-    console.error("❌ Error creating sample movements:", error);
+    console.error("❌ Error checking movements:", error);
   }
 
   console.log("🎉 Initialization complete!");
