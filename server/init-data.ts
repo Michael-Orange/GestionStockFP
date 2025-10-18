@@ -1,7 +1,7 @@
 // Script to initialize default data: users and CSV import
 import { storage } from "./storage";
 import { parse } from "csv-parse/sync";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import bcrypt from "bcrypt";
 
@@ -52,54 +52,61 @@ export async function initializeData() {
     
     if (existingProducts.length === 0) {
       console.log("📦 Importing products from CSV...");
-      const csvPath = join(process.cwd(), "attached_assets", "dust_output_1760788353237._1760788811965.csv");
-      const csvContent = readFileSync(csvPath, "utf-8");
+      const csvPath = join(process.cwd(), "attached_assets", "dust_output_1760788353237._1760812771644.csv");
       
-      const records = parse(csvContent, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-        relax_quotes: true,
-        relax_column_count: true,
-      });
-
-      let imported = 0;
-      const seen = new Set<string>();
-
-      for (const record of records) {
-        const { Catégorie, "Sous-section": SousSection, Produit, Unité } = record;
+      // Check if CSV file exists before trying to read it
+      if (!existsSync(csvPath)) {
+        console.log("⚠️ CSV file not found. Skipping product import (products may already be in database).");
+      } else {
+        const csvContent = readFileSync(csvPath, "utf-8");
         
-        if (!Catégorie || !SousSection || !Produit || !Unité) {
-          continue;
-        }
-
-        // Avoid duplicates in CSV itself
-        const key = `${Catégorie}|${SousSection}|${Produit}`;
-        if (seen.has(key)) {
-          continue;
-        }
-        seen.add(key);
-
-        await storage.createProduct({
-          categorie: Catégorie,
-          sousSection: SousSection,
-          nom: Produit,
-          unite: Unité,
-          stockActuel: 0, // Stock initial à 0
-          stockMinimum: 1, // Stock minimum par défaut
-          statut: "valide",
-          creePar: 3, // Michael (admin)
+        const records = parse(csvContent, {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+          relax_quotes: true,
+          relax_column_count: true,
         });
 
-        imported++;
-      }
+        let imported = 0;
+        const seen = new Set<string>();
 
-      console.log(`✅ Products imported: ${imported}`);
+        for (const record of records) {
+          const { Catégorie, "Sous-section": SousSection, Produit, Unité } = record;
+          
+          if (!Catégorie || !SousSection || !Produit || !Unité) {
+            continue;
+          }
+
+          // Avoid duplicates in CSV itself
+          const key = `${Catégorie}|${SousSection}|${Produit}`;
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+
+          await storage.createProduct({
+            categorie: Catégorie,
+            sousSection: SousSection,
+            nom: Produit,
+            unite: Unité,
+            stockActuel: 0, // Stock initial à 0
+            stockMinimum: 1, // Stock minimum par défaut
+            statut: "valide",
+            creePar: 3, // Michael (admin)
+          });
+
+          imported++;
+        }
+
+        console.log(`✅ Products imported: ${imported}`);
+      }
     } else {
       console.log(`✅ Products already exist: ${existingProducts.length}`);
     }
   } catch (error) {
     console.error("❌ Error importing CSV:", error);
+    // Don't throw - allow app to continue even if CSV import fails
   }
 
   // 3. Ne pas créer de mouvements de test (données de production uniquement)
