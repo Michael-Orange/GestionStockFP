@@ -15,7 +15,7 @@ const baseStyles = `
       padding: 20px;
     }
     .header {
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      background: linear-gradient(135deg, #157a70 0%, #2997aa 100%);
       color: white;
       padding: 30px 20px;
       text-align: center;
@@ -26,10 +26,10 @@ const baseStyles = `
       font-size: 24px;
     }
     .content {
-      background: #f9fafb;
+      background: #edf8f7;
       padding: 30px 20px;
-      border-left: 3px solid #22c55e;
-      border-right: 3px solid #22c55e;
+      border-left: 3px solid #157a70;
+      border-right: 3px solid #157a70;
     }
     .section {
       background: white;
@@ -42,8 +42,8 @@ const baseStyles = `
       font-size: 18px;
       font-weight: 600;
       margin-bottom: 15px;
-      color: #22c55e;
-      border-bottom: 2px solid #22c55e;
+      color: #157a70;
+      border-bottom: 2px solid #157a70;
       padding-bottom: 8px;
     }
     .item {
@@ -71,12 +71,12 @@ const baseStyles = `
       margin-left: 8px;
     }
     .badge-green {
-      background: #d1fae5;
-      color: #065f46;
+      background: #c7e7e3;
+      color: #0d5249;
     }
     .badge-blue {
-      background: #dbeafe;
-      color: #1e40af;
+      background: #d4ebf3;
+      color: #145a74;
     }
     .badge-orange {
       background: #fed7aa;
@@ -95,7 +95,7 @@ const baseStyles = `
     }
     .button-link {
       display: inline-block;
-      background: #22c55e;
+      background: #157a70;
       color: white;
       padding: 12px 24px;
       text-decoration: none;
@@ -105,7 +105,7 @@ const baseStyles = `
       transition: background 0.2s;
     }
     .button-link:hover {
-      background: #16a34a;
+      background: #0f5850;
     }
     @media only screen and (max-width: 600px) {
       body {
@@ -236,11 +236,11 @@ export function createValidationPanierEmail(data: ValidationPanierData): string 
       <div class="content">
         <p style="margin-top: 0;">Récapitulatif de la session de stock validée:</p>
         ${sectionsHtml}
-        <p style="margin-bottom: 0; color: #059669; font-weight: 600;">✅ Mise à jour du stock automatique confirmée</p>
+        <p style="margin-bottom: 0; color: #157a70; font-weight: 600;">✅ Mise à jour du stock automatique confirmée</p>
       </div>
       <div class="footer">
         <strong>FiltrePlante</strong> - Gestion de Stock<br>
-        <a href="https://stock-filtreplante.replit.app" class="button-link">📱 Accéder à l'application</a><br>
+        <a href="https://stock-filtreplante.replit.app" class="button-link">Accéder à l'application</a><br>
         <span style="font-size: 12px;">Cet email est généré automatiquement, ne pas répondre</span>
       </div>
     </body>
@@ -295,7 +295,7 @@ export function createNouveauProduitEmail(data: NouveauProduitData): string {
       </div>
       <div class="footer">
         <strong>FiltrePlante</strong> - Gestion de Stock<br>
-        <a href="https://stock-filtreplante.replit.app" class="button-link">📱 Accéder à l'application</a><br>
+        <a href="https://stock-filtreplante.replit.app" class="button-link">Accéder à l'application</a><br>
         <span style="font-size: 12px;">Cet email est généré automatiquement, ne pas répondre</span>
       </div>
     </body>
