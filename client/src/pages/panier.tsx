@@ -29,6 +29,7 @@ export default function Liste() {
   const prendreItems = items.filter(item => item.typeAction === "prendre");
   const rendreItems = items.filter(item => item.typeAction === "rendre");
   const deposerItems = items.filter(item => item.typeAction === "deposer");
+  const perdreItems = rendreItems.filter(item => (item.quantitePerdue || 0) > 0);
 
   // Remove item mutation
   const removeItemMutation = useMutation({
@@ -204,9 +205,16 @@ export default function Liste() {
                             <h3 className="font-semibold truncate" data-testid={`text-product-${item.id}`}>
                               {item.product?.nom || "Produit inconnu"}
                             </h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Quantité: {item.quantite} {item.product?.unite}
-                            </p>
+                            <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                              {item.quantite > 0 && (
+                                <p>Quantité à rendre: {item.quantite} {item.product?.unite}</p>
+                              )}
+                              {(item.quantitePerdue || 0) > 0 && (
+                                <p className="text-destructive font-medium">
+                                  Quantité perdue: {item.quantitePerdue} {item.product?.unite}
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <Button
                             variant="ghost"
@@ -217,6 +225,33 @@ export default function Liste() {
                           >
                             <Trash2 className="h-4 w-4 text-[hsl(0,84%,60%)]" />
                           </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* MATÉRIEL PERDU */}
+            {perdreItems.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4 text-destructive">
+                  MATÉRIEL PERDU ({perdreItems.length})
+                </h2>
+                <div className="space-y-3">
+                  {perdreItems.map((item) => (
+                    <Card key={`perdu-${item.id}`} className="border-destructive" data-testid={`card-lost-${item.id}`}>
+                      <CardContent className="py-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold truncate text-destructive" data-testid={`text-lost-product-${item.id}`}>
+                              {item.product?.nom || "Produit inconnu"}
+                            </h3>
+                            <p className="text-sm text-destructive/80 mt-1 font-medium">
+                              Quantité perdue: {item.quantitePerdue} {item.product?.unite}
+                            </p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
