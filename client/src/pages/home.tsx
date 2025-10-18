@@ -48,23 +48,23 @@ export default function Home() {
 
       <div className="px-4 py-6 space-y-6">
         {/* Action Buttons */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <Link href="/prendre">
-              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--vert-principal))] hover:bg-[hsl(var(--vert-principal))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-prendre">
+              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--teal-principal))] hover:bg-[hsl(var(--teal-principal))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-prendre">
                 <ArrowDownToLine className="h-6 w-6" />
                 <span className="text-base font-medium">PRENDRE</span>
               </Button>
             </Link>
             <Link href="/deposer">
-              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--bleu-eau))] hover:bg-[hsl(var(--bleu-eau))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-deposer">
+              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--teal-secondaire))] hover:bg-[hsl(var(--teal-secondaire))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-deposer">
                 <Package className="h-6 w-6" />
                 <span className="text-base font-medium">DÉPOSER</span>
               </Button>
             </Link>
           </div>
           <Link href="/stock">
-            <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--beige-terre))] hover:bg-[hsl(var(--beige-terre))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-stock">
+            <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--beige-terre))]/80 hover:bg-[hsl(var(--beige-terre))]/70 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-stock">
               <ClipboardList className="h-6 w-6" />
               <span className="text-base font-medium">STOCK</span>
             </Button>
@@ -86,7 +86,7 @@ export default function Home() {
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-lg">
           <Link href="/panier">
             <Button 
-              className="w-full bg-[hsl(var(--vert-principal))] hover:bg-[hsl(var(--vert-principal))]/90 text-white rounded-xl shadow-md" 
+              className="w-full bg-[hsl(var(--teal-principal))] hover:bg-[hsl(var(--teal-principal))]/90 text-white rounded-xl shadow-md" 
               size="lg"
               data-testid="button-validate-liste-cta"
             >
