@@ -252,7 +252,7 @@ export default function Prendre() {
 
                 {/* Quantité */}
                 <div className="space-y-2">
-                  <Label htmlFor="quantite">Quantité</Label>
+                  <Label htmlFor="quantite">Quantité ({selectedProduct.unite})</Label>
                   <div className="flex items-center gap-3">
                     <Button
                       variant="outline"

@@ -489,7 +489,7 @@ export default function Deposer() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="quantite-deposit">Quantité à ajouter</Label>
+                      <Label htmlFor="quantite-deposit">Quantité à ajouter ({selectedProduct.unite})</Label>
                       <div className="flex items-center gap-3">
                         <Button
                           variant="outline"
