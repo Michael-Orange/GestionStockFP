@@ -61,16 +61,22 @@ export default function Deposer() {
   });
 
   // Mutations
-  const returnMutation = useMutation({
-    mutationFn: async (data: { mouvementId: number; quantite: number }) => {
-      return apiRequest("POST", "/api/movements/return", data);
+  const addReturnToListeMutation = useMutation({
+    mutationFn: async (data: { movementId: number; quantite: number }) => {
+      return apiRequest("POST", "/api/liste/add", {
+        userId: currentUserId,
+        item: {
+          typeAction: "rendre",
+          movementId: data.movementId,
+          quantite: data.quantite,
+        },
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/movements/active"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
-        title: "Retour enregistré",
-        description: `${selectedLoan?.product.nom} × ${returnQuantite} ${selectedLoan?.product.unite}`,
+        title: "Ajouté à la liste",
+        description: `${selectedLoan?.product.nom} × ${returnQuantite} ${selectedLoan?.product.unite} à rendre`,
       });
       setSelectedLoan(null);
       setReturnQuantite(1);
@@ -78,7 +84,7 @@ export default function Deposer() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible d'enregistrer le retour",
+        description: error.message || "Impossible d'ajouter à la liste",
         variant: "destructive",
       });
     },
@@ -116,8 +122,8 @@ export default function Deposer() {
   // Handlers
   const handleReturn = () => {
     if (!selectedLoan) return;
-    returnMutation.mutate({
-      mouvementId: selectedLoan.id,
+    addReturnToListeMutation.mutate({
+      movementId: selectedLoan.id,
       quantite: returnQuantite,
     });
   };
@@ -276,10 +282,10 @@ export default function Deposer() {
                   className="w-full"
                   size="lg"
                   onClick={handleReturn}
-                  disabled={returnMutation.isPending || returnQuantite < 1 || returnQuantite > selectedLoan.quantite}
-                  data-testid="button-validate-return"
+                  disabled={addReturnToListeMutation.isPending || returnQuantite < 1 || returnQuantite > selectedLoan.quantite}
+                  data-testid="button-add-return-to-list"
                 >
-                  {returnMutation.isPending ? "Enregistrement..." : "VALIDER LE RETOUR"}
+                  {addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
                 </Button>
               </div>
             ) : (
@@ -403,10 +409,10 @@ export default function Deposer() {
                   className="w-full"
                   size="lg"
                   onClick={handleReturn}
-                  disabled={returnMutation.isPending || returnQuantite < 1 || returnQuantite > selectedLoan.quantite}
-                  data-testid="button-validate-return"
+                  disabled={addReturnToListeMutation.isPending || returnQuantite < 1 || returnQuantite > selectedLoan.quantite}
+                  data-testid="button-add-return-to-list"
                 >
-                  {returnMutation.isPending ? "Enregistrement..." : "VALIDER LE RETOUR"}
+                  {addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
                 </Button>
               </div>
             ) : (
