@@ -9,7 +9,7 @@ export function LoanDurationBadge({ loan }: LoanDurationBadgeProps) {
   const getDurationStyle = (status: ActiveLoan["statusDuree"]) => {
     switch (status) {
       case "recent":
-        return "bg-[hsl(var(--vert-principal))] text-white border-[hsl(var(--vert-principal))]";
+        return "bg-[hsl(var(--teal-principal))] text-white border-[hsl(var(--teal-principal))]";
       case "attention":
         return "bg-[hsl(var(--orange-alerte))] text-white border-[hsl(var(--orange-alerte))]";
       case "retard":
