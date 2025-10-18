@@ -770,12 +770,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
 
-          // Update stock: returned items increase stock, lost items decrease stock
-          if (item.quantite > 0 || (item.quantitePerdue && item.quantitePerdue > 0)) {
+          // Update stock: only lost items decrease stock (returns don't change stock for loans)
+          if (item.quantitePerdue && item.quantitePerdue > 0) {
             const product = await storage.getProduct(movement.produitId);
             if (product) {
               await storage.updateProduct(movement.produitId, {
-                stockActuel: product.stockActuel + item.quantite - (item.quantitePerdue || 0),
+                stockActuel: product.stockActuel - item.quantitePerdue,
               });
             }
           }
