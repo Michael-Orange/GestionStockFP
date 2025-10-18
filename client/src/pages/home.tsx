@@ -30,7 +30,7 @@ export default function Home() {
             <p className="text-sm text-center text-muted-foreground">
               Sélectionnez votre nom pour commencer
             </p>
-            <UserSelector />
+            <UserSelector listeCount={0} />
           </CardContent>
         </Card>
       </div>
@@ -43,7 +43,7 @@ export default function Home() {
       
       {/* User Selector */}
       <div className="px-4 py-4 border-b bg-card">
-        <UserSelector />
+        <UserSelector listeCount={listeCount} />
       </div>
 
       <div className="px-4 py-6 space-y-6">

@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Lock, Eye, EyeOff } from "lucide-react";
+import { Check, ChevronDown, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -20,6 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
@@ -29,9 +39,16 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-export function UserSelector() {
+interface UserSelectorProps {
+  listeCount?: number;
+}
+
+export function UserSelector({ listeCount = 0 }: UserSelectorProps) {
   const [open, setOpen] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showListeWarning, setShowListeWarning] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<number | null>(null);
+  const [pendingRole, setPendingRole] = useState<string | null>(null);
   const [selectedAdminId, setSelectedAdminId] = useState<number | null>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -40,6 +57,15 @@ export function UserSelector() {
   const { toast } = useToast();
 
   const handleUserSelect = (memberId: number, role: string) => {
+    // Empêcher le changement d'utilisateur si la liste contient des items
+    if (currentUserId && listeCount > 0) {
+      setPendingUserId(memberId);
+      setPendingRole(role);
+      setShowListeWarning(true);
+      setOpen(false);
+      return;
+    }
+
     if (role === "admin") {
       setSelectedAdminId(memberId);
       setPassword("");
@@ -210,6 +236,26 @@ export function UserSelector() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showListeWarning} onOpenChange={setShowListeWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-[hsl(25,95%,53%)]" />
+              Liste non validée
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous avez {listeCount} article{listeCount > 1 ? 's' : ''} dans votre liste non validée. 
+              Veuillez valider ou vider votre liste avant de changer d'utilisateur.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-user-change">
+              Compris
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
