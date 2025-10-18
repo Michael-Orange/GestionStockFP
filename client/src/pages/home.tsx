@@ -51,7 +51,7 @@ export default function Home() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Link href="/prendre">
-              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--vert-vif))] hover:bg-[hsl(var(--vert-vif))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-prendre">
+              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--vert-principal))] hover:bg-[hsl(var(--vert-principal))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-prendre">
                 <ArrowDownToLine className="h-6 w-6" />
                 <span className="text-base font-medium">PRENDRE</span>
               </Button>
@@ -86,7 +86,7 @@ export default function Home() {
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-lg">
           <Link href="/panier">
             <Button 
-              className="w-full bg-[hsl(var(--vert-vif))] hover:bg-[hsl(var(--vert-vif))]/90 text-white rounded-xl shadow-md" 
+              className="w-full bg-[hsl(var(--vert-principal))] hover:bg-[hsl(var(--vert-principal))]/90 text-white rounded-xl shadow-md" 
               size="lg"
               data-testid="button-validate-liste-cta"
             >

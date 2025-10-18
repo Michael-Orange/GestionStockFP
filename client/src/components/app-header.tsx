@@ -49,7 +49,7 @@ export function AppHeader({ showBack = false, backPath = "/", title }: AppHeader
               <div className="relative" data-testid="link-liste-header">
                 <ShoppingCart className="h-6 w-6 text-white" data-testid="icon-liste-header" />
                 {listeCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[hsl(var(--vert-vif))] text-white text-xs font-medium rounded-full h-5 w-5 flex items-center justify-center shadow-sm" data-testid="badge-liste-count-header">
+                  <span className="absolute -top-1 -right-1 bg-white text-[hsl(var(--vert-principal))] text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md" data-testid="badge-liste-count-header">
                     {listeCount}
                   </span>
                 )}

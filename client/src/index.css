@@ -85,8 +85,8 @@
   --chart-4: 15 25% 47%;
   --chart-5: 0 70% 51%;
   
-  /* Stock status colors */
-  --stock-ok: 122 39% 49%;
+  /* Stock status colors - using accessible combinations */
+  --stock-ok: 123 48% 33%;
   --stock-low: 34 100% 50%;
   --stock-empty: 0 70% 51%;
 
@@ -217,8 +217,8 @@
   --chart-4: 15 25% 60%;
   --chart-5: 0 70% 60%;
 
-  /* Stock status colors */
-  --stock-ok: 122 39% 60%;
+  /* Stock status colors - using accessible combinations */
+  --stock-ok: 123 48% 45%;
   --stock-low: 34 100% 60%;
   --stock-empty: 0 70% 60%;
 

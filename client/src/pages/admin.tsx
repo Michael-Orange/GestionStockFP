@@ -205,7 +205,7 @@ export default function Admin() {
                         size="sm"
                         onClick={() => validateMutation.mutate(product.id)}
                         disabled={validateMutation.isPending}
-                        className="bg-[hsl(var(--vert-vif))] hover:bg-[hsl(var(--vert-vif))]/90 text-white border-0"
+                        className="bg-[hsl(var(--vert-principal))] hover:bg-[hsl(var(--vert-principal))]/90 text-white border-0"
                         data-testid={`button-validate-${product.id}`}
                       >
                         <Check className="mr-1 h-4 w-4" />

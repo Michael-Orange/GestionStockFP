@@ -69,16 +69,18 @@ Pour utiliser dans index.css (format HSL sans parenthèses):
 ### Header & Navigation
 - **Header "FiltrePlante"**: Fond Vert Principal (#2E7D32), texte blanc, hauteur 64px
 - **User Selector**: Intégré dans le header, texte blanc sur fond vert
-- **Badge session/panier**: Vert Vif (#4CAF50) avec nombre en blanc, position top-right du header
+- **Badge session/panier**: Fond blanc avec nombre en Vert Principal (bon contraste), position top-right du header, ombre légère
 
 ### Action Buttons (Home Page)
-- **Bouton PRENDRE**: Fond Vert Vif (#4CAF50), texte blanc, icône blanche
+- **Bouton PRENDRE**: Fond Vert Principal (#2E7D32), texte blanc, icône blanche (bon contraste WCAG AA)
 - **Bouton DÉPOSER**: Fond Bleu Eau (#1565C0), texte blanc, icône blanche
 - **Bouton STOCK**: Fond Beige Terre (#8D6E63), texte blanc, icône blanche
+- **Bouton CTA "Valider ma liste"**: Fond Vert Principal (#2E7D32), texte blanc (accessibilité)
 - **Bouton RENDRE**: Style outline avec bordure Vert Principal, texte Vert Principal
 - Minimum height: 56px (mobile optimisé)
 - Border radius: 12px (coins arrondis modernes)
 - Box shadow: 0 2px 8px rgba(0,0,0,0.12) (ombres légères)
+- Note: Vert Vif (#4CAF50) n'est pas utilisé pour les boutons car le contraste avec texte blanc < WCAG AA
 
 ### Product Cards
 Display format: **"Product Name (current/total)"**
@@ -113,12 +115,12 @@ Display format: **"Product Name (current/total)"**
 - Border radius: 8px
 
 ### Admin Interface
-- **Background**: Vert Clair (#E8F5E8) pour les sections admin
-- **Pending products**: Border orange (#FF8F00), fond blanc
+- **Background**: Vert Clair (#E8F5E8) pour toute la page admin
+- **Pending products**: Badge "En attente" Orange Alerte, cards avec fond blanc
 - **Action buttons**: 
-  - Valider: Fond Vert Vif (#4CAF50)
-  - Modifier: Fond Bleu Eau (#1565C0)
-  - Supprimer: Fond Rouge Urgent (#D32F2F)
+  - Valider: Fond Vert Principal (#2E7D32), texte blanc (accessibilité)
+  - Modifier: Fond Bleu Eau (#1565C0), texte blanc
+  - Supprimer: Fond Rouge Urgent (#D32F2F), texte blanc
 - Clear product details preview with proper spacing
 
 ### Alerts/Notifications
