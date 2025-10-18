@@ -10,11 +10,11 @@ export function StockBadge({ product, showQuantity = true }: StockBadgeProps) {
   const getStockStyle = (status: ProductWithStock["stockStatus"]) => {
     switch (status) {
       case "ok":
-        return "bg-[hsl(142,71%,45%)] text-white border-[hsl(142,71%,35%)]";
+        return "bg-[hsl(var(--stock-ok))] text-white border-[hsl(var(--stock-ok))]";
       case "faible":
-        return "bg-[hsl(25,95%,53%)] text-white border-[hsl(25,95%,43%)]";
+        return "bg-[hsl(var(--stock-low))] text-white border-[hsl(var(--stock-low))]";
       case "vide":
-        return "bg-[hsl(0,84%,60%)] text-white border-[hsl(0,84%,50%)]";
+        return "bg-[hsl(var(--stock-empty))] text-white border-[hsl(var(--stock-empty))]";
     }
   };
 
@@ -58,17 +58,17 @@ export function StockIndicatorDot({ status }: StockIndicatorDotProps) {
   const getColor = (status: ProductWithStock["stockStatus"]) => {
     switch (status) {
       case "ok":
-        return "bg-[hsl(142,71%,45%)]";
+        return "bg-[hsl(var(--stock-ok))]";
       case "faible":
-        return "bg-[hsl(25,95%,53%)]";
+        return "bg-[hsl(var(--stock-low))]";
       case "vide":
-        return "bg-[hsl(0,84%,60%)]";
+        return "bg-[hsl(var(--stock-empty))]";
     }
   };
 
   return (
     <div 
-      className={`w-2 h-2 rounded-full ${getColor(status)}`}
+      className={`w-3 h-3 rounded-full ${getColor(status)}`}
       data-testid={`dot-stock-${status}`}
     />
   );
