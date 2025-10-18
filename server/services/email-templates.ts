@@ -15,7 +15,7 @@ const baseStyles = `
       padding: 20px;
     }
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
       color: white;
       padding: 30px 20px;
       text-align: center;
@@ -28,8 +28,8 @@ const baseStyles = `
     .content {
       background: #f9fafb;
       padding: 30px 20px;
-      border-left: 3px solid #667eea;
-      border-right: 3px solid #667eea;
+      border-left: 3px solid #22c55e;
+      border-right: 3px solid #22c55e;
     }
     .section {
       background: white;
@@ -42,8 +42,8 @@ const baseStyles = `
       font-size: 18px;
       font-weight: 600;
       margin-bottom: 15px;
-      color: #667eea;
-      border-bottom: 2px solid #667eea;
+      color: #22c55e;
+      border-bottom: 2px solid #22c55e;
       padding-bottom: 8px;
     }
     .item {
