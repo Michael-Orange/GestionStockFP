@@ -47,7 +47,7 @@ async function getUncachableResendClient() {
 }
 
 export interface SendEmailOptions {
-  type: 'validation_panier' | 'nouveau_produit' | 'rappel_retard';
+  type: 'validation_panier' | 'nouveau_produit';
   to: string[]; // Array of emails
   subject: string;
   html: string;
