@@ -26,8 +26,8 @@ L'application est entièrement implémentée, testée et opérationnelle:
 ## Architecture
 
 ### Base de données PostgreSQL (Drizzle ORM)
-- **users**: 5 utilisateurs (Marine, Fatou, Michael [admin], Cheikh, Papa)
-  - Nouveau: passwordHash (bcrypt) pour Marine et Michael (mot de passe: "Fplante@Stock1!")
+- **users**: 5 utilisateurs (Cheikh, Fatou, Marine [admin], Michael [admin], Papa - tri alphabétique)
+  - Nouveau: passwordHash (bcrypt) pour Marine et Michael (mot de passe: "Fp2025")
 - **products**: 305 produits importés depuis CSV
   - Champs: catégorie, sous-section, nom, unité, stockActuel, stockMinimum, statut (valide/en_attente)
 - **movements**: Mouvements de stock
@@ -38,7 +38,7 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - **listes**: Listes d'actions en attente (renommé de "paniers")
   - Champs: utilisateurId, dateModification
 - **liste_items**: Items dans les listes
-  - Champs: listeId, produitId, quantite, type (pret/consommation), empruntId (pour retours)
+  - Champs: listeId, typeAction (prendre/rendre/deposer), produitId, quantite, typeMouvement (pret/consommation), movementId (pour retours)
 
 ### Frontend (React + TypeScript)
 - Stack: Vite, React, Wouter, TanStack Query, Shadcn UI, Tailwind CSS
@@ -46,13 +46,13 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - Thème: Inter font, indicateurs colorés (Vert/Orange/Rouge)
 
 ### Pages principales
-1. **Home** (`/`): Sélection utilisateur, stats rapides, liste emprunts en cours, 3 boutons d'action (PRENDRE, DÉPOSER, STOCK), badge liste
+1. **Home** (`/`): Sélection utilisateur + 3 boutons d'action (PRENDRE, DÉPOSER, STOCK) - interface simplifiée sans alertes ni stats emprunts
 2. **Prendre** (`/prendre`): Navigation Catégorie → Sous-section → Produit avec bouton "Ajouter à ma liste" + formulaire création produit
 3. **Déposer** (`/deposer`): Page unifiée avec 3 onglets:
    - **Mes emprunts**: Liste emprunts utilisateur actuel avec durée écoulée et retour
    - **Tous les emprunts**: Liste TOUS les emprunts (tous utilisateurs) avec nom emprunteur et retour
-   - **Ajouter du stock**: Arborescence Catégorie → Sous-section → Produit (incluant stock=0) + formulaire création produit
-4. **Ma liste** (`/panier`): Vue groupée des actions (PRENDRE/RENDRE), retrait d'items, vidage et validation groupée
+   - **Ajouter du stock**: Arborescence Catégorie → Sous-section → Produit (incluant stock=0) + bouton "Ajouter à ma liste" + formulaire création produit
+4. **Ma liste** (`/panier`): Vue groupée des actions (PRENDRE/RENDRE/DÉPOSER), retrait d'items, vidage (bouton rouge destructive) et validation groupée
 5. **Stock** (`/stock`): Vue par catégorie avec filtres (OK/Faible/Vide) et accordéons
 6. **Admin** (`/admin`): Validation produits en attente (Michael uniquement, protégé par mot de passe)
 7. **Redirection**: `/rendre` → redirige automatiquement vers `/deposer`
@@ -63,9 +63,9 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - Sélection utilisateur sans mot de passe (localStorage)
 - Context React pour utilisateur actuel
 - Interface admin conditionnelle (role=admin)
-- **Authentification admin par mot de passe**: Marine et Michael doivent entrer "Fplante@Stock1!" pour accéder à /admin
+- **Authentification admin par mot de passe**: Marine et Michael doivent entrer "Fp2025" pour accéder à /admin
   - Hachage bcrypt côté serveur
-  - Modale de saisie avec validation
+  - Modale de saisie avec validation et bouton toggle visibility (Eye icon)
   - Endpoint POST /api/auth/verify-password
 
 ### Gestion Stock
@@ -99,10 +99,12 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - **Disponible depuis**: Page PRENDRE et onglet "Ajouter du stock" de DÉPOSER
 - **Fonctionnalités**:
   - Dropdown catégories avec chargement des sous-sections dynamique
+  - Dropdown **unités dynamiques** chargées depuis DB via GET /api/units
   - Option "Nouvelle sous-section" pour créer nouvelle sous-section
-  - Validation défensive (empêche soumission catégories/sous-sections vides)
+  - Option "Nouvelle unité" pour créer nouvelle unité personnalisée
+  - Validation défensive (empêche soumission catégories/sous-sections/unités vides)
   - Création en statut "en_attente" → validation admin requise
-- **Endpoint**: GET /api/categories/:categorie/sous-sections
+- **Endpoints**: GET /api/categories/:categorie/sous-sections, GET /api/units
 
 ### Page DÉPOSER Unifiée ✅ NOUVEAU
 **Fusion RENDRE + DÉPOSER en une seule page avec onglets**
@@ -113,28 +115,29 @@ L'application est entièrement implémentée, testée et opérationnelle:
   - Affiche nom de l'emprunteur (enrichissement côté serveur)
   - Permet à n'importe qui de retourner n'importe quel emprunt
   - Endpoint: GET /api/movements/active (retourne tous emprunts avec user)
-- **Onglet 3 - Ajouter du stock**: Workflow DÉPOSER classique
+- **Onglet 3 - Ajouter du stock**: Workflow DÉPOSER avec système de liste
   - Arborescence Catégorie → Sous-section → Produit
   - **Inclut produits avec stock=0** (changement important!)
+  - Bouton "Ajouter à ma liste" au lieu de validation immédiate (NOUVEAU)
   - Bouton "Créer nouveau produit"
   - Breadcrumb navigation et boutons retour
 
 ### Système de Liste (Actions Groupées) ✅ NOUVEAU
 **Renommage complet: panier → liste**
-- **Badge compteur** dans navigation principale (icône ShoppingCart)
-- **Ajout à la liste** depuis PRENDRE et workflows DÉPOSER (onglets Mes/Tous emprunts)
-- **Page Ma liste** (`/panier`) avec affichage groupé:
-  - Section "À PRENDRE" avec produits et types (prêt/consommation)
-  - Section "À RENDRE" avec emprunts et quantités
+- **Badge compteur global** dans header de toutes les pages (composant AppHeader) avec icône ShoppingCart
+  - Badge numérique affiché uniquement quand liste non vide
+  - Icône toujours cliquable pour accéder à /panier même si liste vide
+  - Caché uniquement sur /panier (pour éviter redondance)
+- **Ajout à la liste** depuis PRENDRE, DÉPOSER (onglet "Ajouter du stock"), et workflows RENDRE (onglets Mes/Tous emprunts)
+- **Page Ma liste** (`/panier`) avec affichage groupé par type d'action:
+  - Section "À PRENDRE" (vert) avec produits et types (prêt/consommation)
+  - Section "À RENDRE" (bleu) avec emprunts et quantités
+  - Section "À DÉPOSER" (orange) avec produits et quantités (NOUVEAU)
 - **Actions liste**:
   - Retirer item individuel
-  - Vider toute la liste
-  - Valider ensemble (crée tous mouvements en une fois)
+  - Vider toute la liste (bouton rouge destructive)
+  - Valider ensemble (crée tous mouvements en une fois: emprunts + retours + dépôts)
 - **UX optimisée**: reset automatique après ajout pour continuer parcours
-- **Modale de confirmation**: Si liste non vide et navigation, propose 3 choix:
-  - Continuer sans valider
-  - Valider la liste maintenant
-  - Vider la liste
 - **Invalidation cache**: queries liste, mouvements, produits invalidées après chaque action
 
 ### Import de Données
@@ -163,17 +166,17 @@ L'application est entièrement implémentée, testée et opérationnelle:
 
 ### Listes (Actions Groupées)
 - `GET /api/liste/:userId` - Récupérer liste utilisateur
-- `POST /api/liste/:userId/add-borrow` - Ajouter produit à emprunter à la liste
-- `POST /api/liste/:userId/add-return` - Ajouter retour à la liste
-- `POST /api/liste/:userId/remove/:itemId` - Retirer item de la liste
-- `DELETE /api/liste/:userId` - Vider toute la liste
-- `POST /api/liste/:userId/validate` - Valider tous les items (crée mouvements)
+- `POST /api/liste/add` - Ajouter item à la liste (générique: typeAction=prendre|rendre|deposer)
+- `DELETE /api/liste/item/:itemId` - Retirer item de la liste
+- `DELETE /api/liste/:userId/clear` - Vider toute la liste
+- `POST /api/liste/:userId/validate` - Valider tous les items (crée mouvements: emprunts + retours + dépôts)
 
 ### Auth Admin
 - `POST /api/auth/verify-password` - Vérifier mot de passe admin (body: {userId, password})
 
-### Catégories
-- `GET /api/categories/:categorie/sous-sections` - Récupérer sous-sections d'une catégorie (NOUVEAU)
+### Catégories & Unités
+- `GET /api/categories/:categorie/sous-sections` - Récupérer sous-sections d'une catégorie
+- `GET /api/units` - Récupérer toutes les unités uniques utilisées dans la DB (NOUVEAU)
 
 ### Utilisateurs & Alertes
 - `GET /api/users` - Liste utilisateurs
