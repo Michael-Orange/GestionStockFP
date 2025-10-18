@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Plus, Minus } from "lucide-react";
+import { Package, Plus, Minus, Search } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import { LoanDurationBadge } from "@/components/loan-duration-badge";
 import { CreateProductForm } from "@/components/create-product-form";
@@ -38,6 +38,7 @@ export default function Deposer() {
   const [selectedProduct, setSelectedProduct] = useState<ProductWithStock | null>(null);
   const [depositQuantite, setDepositQuantite] = useState(1);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (!currentUser) {
     setLocation("/");
