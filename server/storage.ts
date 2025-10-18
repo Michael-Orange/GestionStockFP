@@ -1,12 +1,13 @@
 // Storage interface for FiltrePlante stock management
 import { 
-  users, products, movements, alerts, listes, listeItems,
+  users, products, movements, alerts, listes, listeItems, emailLogs,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type Movement, type InsertMovement,
   type Alert, type InsertAlert,
   type Liste, type InsertListe,
-  type ListeItem, type InsertListeItem
+  type ListeItem, type InsertListeItem,
+  type EmailLog, type InsertEmailLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -46,6 +47,9 @@ export interface IStorage {
   removeItemFromListe(itemId: number): Promise<void>;
   clearListe(userId: number): Promise<void>;
   updateListeTimestamp(userId: number): Promise<void>;
+  
+  // Email Logs
+  createEmailLog(emailLog: InsertEmailLog): Promise<EmailLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -297,6 +301,15 @@ export class DatabaseStorage implements IStorage {
       .update(listes)
       .set({ dateModification: new Date() })
       .where(eq(listes.utilisateurId, userId));
+  }
+
+  // Email Logs
+  async createEmailLog(insertEmailLog: InsertEmailLog): Promise<EmailLog> {
+    const [emailLog] = await db
+      .insert(emailLogs)
+      .values(insertEmailLog)
+      .returning();
+    return emailLog;
   }
 }
 

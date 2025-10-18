@@ -8,6 +8,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
+import { sendEmail } from "./services/email-service";
+import { 
+  createValidationPanierEmail, 
+  createNouveauProduitEmail,
+  type ValidationPanierData,
+  type NouveauProduitData
+} from "./services/email-templates";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to calculate available stock
@@ -203,6 +210,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const parsed = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(parsed);
+      
+      // Send email if created by non-admin user (not Michael=3 and not Marine=1)
+      if (parsed.creePar && parsed.creePar !== 3 && parsed.creePar !== 1) {
+        const creator = await storage.getUser(parsed.creePar);
+        const emailData: NouveauProduitData = {
+          productName: product.nom,
+          category: product.categorie,
+          subSection: product.sousSection,
+          createdBy: creator?.nom || 'Utilisateur inconnu',
+          date: new Date().toLocaleString('fr-FR'),
+        };
+        
+        const emailHtml = createNouveauProduitEmail(emailData);
+        await sendEmail(storage, {
+          type: 'nouveau_produit',
+          to: ['marine@filtreplante.com', 'michael@filtreplante.com'],
+          subject: `[STOCK] Nouveau produit en attente - ${product.nom}`,
+          html: emailHtml,
+        });
+      }
       
       // Notify admin (Michael = id 3) if not created by admin
       if (parsed.creePar !== 3) {
@@ -768,9 +795,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear liste after successful validation
       await storage.clearListe(userId);
 
+      // Send validation email
+      const user = await storage.getUser(userId);
+      const validationData: ValidationPanierData = {
+        userName: user?.nom || 'Utilisateur inconnu',
+        date: new Date().toLocaleString('fr-FR'),
+        items: {
+          prendre: [],
+          rendre: [],
+          deposer: [],
+        },
+      };
+
+      // Pre-fetch all unique product IDs needed for returns
+      const returnProductIds = new Set<number>();
+      for (const item of items) {
+        if (item.typeAction === "rendre" && item.movement?.produitId) {
+          returnProductIds.add(item.movement.produitId);
+        }
+      }
+      
+      // Fetch all return products in one query
+      const returnProductsMap = new Map<number, any>();
+      for (const produitId of returnProductIds) {
+        const product = await storage.getProduct(produitId);
+        if (product) {
+          returnProductsMap.set(produitId, product);
+        }
+      }
+
+      // Build email data from items
+      for (const item of items) {
+        if (item.typeAction === "prendre" && item.product) {
+          validationData.items.prendre!.push({
+            nom: item.product.nom,
+            quantite: item.quantite,
+            unite: item.product.unite,
+            type: item.typeMouvement || 'pret',
+          });
+        } else if (item.typeAction === "rendre" && item.movement?.produitId) {
+          // For returns, get product from pre-fetched map
+          const product = returnProductsMap.get(item.movement.produitId);
+          if (product) {
+            validationData.items.rendre!.push({
+              nom: product.nom,
+              quantite: item.quantite,
+              unite: product.unite,
+            });
+          }
+        } else if (item.typeAction === "deposer" && item.product) {
+          validationData.items.deposer!.push({
+            nom: item.product.nom,
+            quantite: item.quantite,
+            unite: item.product.unite,
+          });
+        }
+      }
+
+      const emailHtml = createValidationPanierEmail(validationData);
+      await sendEmail(storage, {
+        type: 'validation_panier',
+        to: ['marine@filtreplante.com', 'michael@filtreplante.com'],
+        subject: `[STOCK] Session de ${validationData.userName} - ${validationData.date}`,
+        html: emailHtml,
+      });
+
       res.json({ success: true, results });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // GET /api/movements/overdue - Get loans overdue by more than 30 days
+  app.get("/api/movements/overdue", async (req, res) => {
+    try {
+      const allMovements = await storage.getAllMovements();
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // Filter active loans older than 30 days
+      const overdueLoans = allMovements.filter(m => 
+        m.type === "pret" && 
+        m.statut === "en_cours" &&
+        new Date(m.date) < thirtyDaysAgo
+      );
+      
+      // Enrich with user and product data
+      const enrichedLoans = await Promise.all(
+        overdueLoans.map(async (loan) => {
+          const user = await storage.getUser(loan.utilisateurId);
+          const product = await storage.getProduct(loan.produitId);
+          const daysSince = Math.floor((now.getTime() - new Date(loan.date).getTime()) / (24 * 60 * 60 * 1000));
+          
+          return {
+            ...loan,
+            user,
+            product,
+            daysSince,
+          };
+        })
+      );
+      
+      res.json(enrichedLoans);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/emails/send-overdue-reminders - Send reminder emails for overdue loans
+  app.post("/api/emails/send-overdue-reminders", async (req, res) => {
+    try {
+      const allMovements = await storage.getAllMovements();
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // Filter active loans older than 30 days
+      const overdueLoans = allMovements.filter(m => 
+        m.type === "pret" && 
+        m.statut === "en_cours" &&
+        new Date(m.date) < thirtyDaysAgo
+      );
+      
+      if (overdueLoans.length === 0) {
+        return res.json({ success: true, message: "Aucun emprunt en retard", emailSent: false });
+      }
+      
+      // Enrich with user and product data
+      const enrichedLoans = await Promise.all(
+        overdueLoans.map(async (loan) => {
+          const user = await storage.getUser(loan.utilisateurId);
+          const product = await storage.getProduct(loan.produitId);
+          const daysSince = Math.floor((now.getTime() - new Date(loan.date).getTime()) / (24 * 60 * 60 * 1000));
+          
+          return {
+            productName: product?.nom || 'Produit inconnu',
+            borrower: user?.nom || 'Utilisateur inconnu',
+            quantite: loan.quantite,
+            unite: product?.unite || 'u',
+            daysSince,
+          };
+        })
+      );
+      
+      // Import template for overdue reminders
+      const { createRappelRetardEmail } = await import('./services/email-templates');
+      
+      const emailHtml = createRappelRetardEmail({
+        overdueLoans: enrichedLoans,
+        date: new Date().toLocaleString('fr-FR'),
+      });
+      
+      const emailSent = await sendEmail(storage, {
+        type: 'rappel_retard',
+        to: ['marine@filtreplante.com', 'michael@filtreplante.com'],
+        subject: `[STOCK] Rappel: ${overdueLoans.length} emprunt(s) en retard (+30 jours)`,
+        html: emailHtml,
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Email ${emailSent ? 'envoyé' : 'échoué'}`,
+        emailSent,
+        overdueCount: overdueLoans.length 
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

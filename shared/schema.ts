@@ -115,6 +115,25 @@ export const insertListeItemSchema = createInsertSchema(listeItems).omit({
 export type InsertListeItem = z.infer<typeof insertListeItemSchema>;
 export type ListeItem = typeof listeItems.$inferSelect;
 
+// EMAIL LOGS
+export const emailLogs = pgTable("email_logs", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // "validation_panier" | "nouveau_produit" | "rappel_retard"
+  destinataires: text("destinataires").array().notNull(), // array d'emails
+  sujet: text("sujet").notNull(),
+  statutEnvoi: text("statut_envoi").notNull(), // "success" | "error"
+  dateEnvoi: timestamp("date_envoi").notNull().defaultNow(),
+  erreur: text("erreur"), // message d'erreur si échec
+  metadata: text("metadata"), // JSON string pour infos supplémentaires
+});
+
+export const insertEmailLogSchema = createInsertSchema(emailLogs).omit({ 
+  id: true, 
+  dateEnvoi: true 
+});
+export type InsertEmailLog = z.infer<typeof insertEmailLogSchema>;
+export type EmailLog = typeof emailLogs.$inferSelect;
+
 // RELATIONS
 export const usersRelations = relations(users, ({ many }) => ({
   movements: many(movements),

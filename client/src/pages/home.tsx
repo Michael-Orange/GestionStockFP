@@ -3,11 +3,20 @@ import { UserSelector } from "@/components/user-selector";
 import { AppHeader } from "@/components/app-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, ArrowDownToLine, ClipboardList } from "lucide-react";
+import { Package, ArrowDownToLine, ClipboardList, ShoppingCart } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
-  const { currentUser } = useCurrentUser();
+  const { currentUser, currentUserId } = useCurrentUser();
+  
+  // Récupérer la liste pour afficher le bouton CTA
+  const { data: listeResponse } = useQuery<{ liste: any; items: any[] }>({
+    queryKey: currentUserId ? [`/api/liste/${currentUserId}`] : ['liste-disabled'],
+    enabled: !!currentUserId,
+  });
+  
+  const listeCount = listeResponse?.items?.length || 0;
 
   if (!currentUser) {
     return (
@@ -71,6 +80,22 @@ export default function Home() {
           </Link>
         )}
       </div>
+
+      {/* Bouton CTA "Valider ma liste" - affiché uniquement si liste non vide */}
+      {listeCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
+          <Link href="/panier">
+            <Button 
+              className="w-full" 
+              size="lg"
+              data-testid="button-validate-liste-cta"
+            >
+              <ShoppingCart className="h-5 w-5 mr-2" />
+              Valider ma liste ({listeCount} {listeCount === 1 ? "item" : "items"})
+            </Button>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
