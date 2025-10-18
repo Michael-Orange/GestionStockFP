@@ -93,6 +93,20 @@ const baseStyles = `
     .footer strong {
       color: white;
     }
+    .button-link {
+      display: inline-block;
+      background: #22c55e;
+      color: white;
+      padding: 12px 24px;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      margin: 15px 0 10px 0;
+      transition: background 0.2s;
+    }
+    .button-link:hover {
+      background: #16a34a;
+    }
     @media only screen and (max-width: 600px) {
       body {
         padding: 10px;
@@ -226,7 +240,8 @@ export function createValidationPanierEmail(data: ValidationPanierData): string 
       </div>
       <div class="footer">
         <strong>FiltrePlante</strong> - Gestion de Stock<br>
-        Cet email est généré automatiquement, ne pas répondre
+        <a href="https://stock-filtreplante.replit.app" class="button-link">📱 Accéder à l'application</a><br>
+        <span style="font-size: 12px;">Cet email est généré automatiquement, ne pas répondre</span>
       </div>
     </body>
     </html>
@@ -280,7 +295,8 @@ export function createNouveauProduitEmail(data: NouveauProduitData): string {
       </div>
       <div class="footer">
         <strong>FiltrePlante</strong> - Gestion de Stock<br>
-        Cet email est généré automatiquement, ne pas répondre
+        <a href="https://stock-filtreplante.replit.app" class="button-link">📱 Accéder à l'application</a><br>
+        <span style="font-size: 12px;">Cet email est généré automatiquement, ne pas répondre</span>
       </div>
     </body>
     </html>
