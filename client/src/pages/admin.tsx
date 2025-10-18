@@ -205,7 +205,7 @@ export default function Admin() {
                         size="sm"
                         onClick={() => validateMutation.mutate(product.id)}
                         disabled={validateMutation.isPending}
-                        className="bg-[hsl(var(--vert-principal))] hover:bg-[hsl(var(--vert-principal))]/90 text-white border-0"
+                        className="bg-[hsl(var(--teal-principal))] hover:bg-[hsl(var(--teal-principal))]/90 text-white border-0"
                         data-testid={`button-validate-${product.id}`}
                       >
                         <Check className="mr-1 h-4 w-4" />
@@ -214,7 +214,7 @@ export default function Admin() {
                       <Button
                         size="sm"
                         onClick={() => handleEdit(product)}
-                        className="bg-[hsl(var(--bleu-eau))] hover:bg-[hsl(var(--bleu-eau))]/90 text-white border-0"
+                        className="bg-[hsl(var(--teal-secondaire))] hover:bg-[hsl(var(--teal-secondaire))]/90 text-white border-0"
                         data-testid={`button-edit-${product.id}`}
                       >
                         <Edit className="mr-1 h-4 w-4" />
