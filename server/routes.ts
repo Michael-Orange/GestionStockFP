@@ -96,6 +96,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/products/export-csv - Export all products with quantities (admin)
+  app.get("/api/products/export-csv", async (req, res) => {
+    try {
+      const allProducts = await storage.getAllProducts();
+      const enrichedProducts = await Promise.all(
+        allProducts.map((p) => enrichProductWithStock(p))
+      );
+      
+      // Helper to escape CSV fields
+      const escapeCSV = (field: string) => {
+        const escaped = field.replace(/"/g, '""');
+        return `"${escaped}"`;
+      };
+      
+      // Generate CSV
+      const csvHeader = "Catégorie,Sous-section,Produit,Unité,Stock Actuel,Stock Disponible,Stock Minimum,Statut,Type Autorisé\n";
+      const csvRows = enrichedProducts.map((p) => 
+        `${escapeCSV(p.categorie)},${escapeCSV(p.sousSection)},${escapeCSV(p.nom)},${escapeCSV(p.unite)},${p.stockActuel},${p.stockDisponible},${p.stockMinimum},${escapeCSV(p.statut)},${escapeCSV(p.typesMouvementsAutorises)}`
+      ).join("\n");
+      
+      const csv = csvHeader + csvRows;
+      
+      // Set headers for file download
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="stock-filtreplante-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send("\ufeff" + csv); // UTF-8 BOM for Excel
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/products - Create new product
   app.post("/api/products", async (req, res) => {
     try {
@@ -206,6 +237,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Defensive check: reject non-validated products
       if (product.statut !== "valide") {
         return res.status(400).json({ error: "Ce produit doit être validé avant d'être emprunté" });
+      }
+
+      // Check if movement type is allowed for this product
+      if (product.typesMouvementsAutorises !== "les_deux") {
+        if (product.typesMouvementsAutorises !== type) {
+          return res.status(400).json({ 
+            error: `Ce produit n'autorise que le type "${product.typesMouvementsAutorises}"` 
+          });
+        }
       }
 
       const stockDisponible = await calculateAvailableStock(produitId, product.stockActuel);

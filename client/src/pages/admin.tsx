@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Check, X, Edit, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Check, X, Edit, AlertTriangle, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock } from "@/lib/types";
@@ -146,6 +146,19 @@ export default function Admin() {
       </header>
 
       <div className="px-4 py-6 space-y-6">
+        {/* Export CSV */}
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            window.location.href = "/api/products/export-csv";
+          }}
+          data-testid="button-export-csv"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Exporter tous les produits (CSV)
+        </Button>
+
         {/* Stats */}
         <Card>
           <CardContent className="pt-6">

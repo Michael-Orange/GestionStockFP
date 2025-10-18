@@ -26,6 +26,7 @@ export const products = pgTable("products", {
   stockActuel: integer("stock_actuel").notNull().default(0),
   stockMinimum: integer("stock_minimum").notNull().default(0),
   statut: text("statut").notNull().default("valide"), // "valide" | "en_attente"
+  typesMouvementsAutorises: text("types_mouvements_autorises").notNull().default("les_deux"), // "pret" | "consommation" | "les_deux"
   creePar: integer("cree_par"), // user id
   dateCreation: timestamp("date_creation").notNull().defaultNow(),
 });

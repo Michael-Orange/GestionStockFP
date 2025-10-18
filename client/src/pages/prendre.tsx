@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCurrentUser } from "@/lib/user-context";
 import { useLocation } from "wouter";
@@ -82,6 +82,20 @@ export default function Prendre() {
   const sousSections = selectedCategorie
     ? [...new Set(products.filter((p) => p.categorie === selectedCategorie).map((p) => p.sousSection))]
     : [];
+
+  // Auto-select movement type based on product restrictions
+  useEffect(() => {
+    if (selectedProduct) {
+      if (selectedProduct.typesMouvementsAutorises === "pret") {
+        setTypeEmprunt("pret");
+      } else if (selectedProduct.typesMouvementsAutorises === "consommation") {
+        setTypeEmprunt("consommation");
+      } else {
+        // "les_deux" - keep default "pret"
+        setTypeEmprunt("pret");
+      }
+    }
+  }, [selectedProduct]);
 
   const handleValidate = () => {
     if (!selectedProduct) return;
@@ -217,18 +231,22 @@ export default function Prendre() {
                 <div className="space-y-3">
                   <Label>Type</Label>
                   <RadioGroup value={typeEmprunt} onValueChange={(v) => setTypeEmprunt(v as "pret" | "consommation")}>
-                    <div className="flex items-center space-x-2 min-h-touch">
-                      <RadioGroupItem value="pret" id="pret" data-testid="radio-pret" />
-                      <Label htmlFor="pret" className="cursor-pointer flex-1">
-                        Prêt (à rendre)
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 min-h-touch">
-                      <RadioGroupItem value="consommation" id="consommation" data-testid="radio-consommation" />
-                      <Label htmlFor="consommation" className="cursor-pointer flex-1">
-                        Consommation (définitif)
-                      </Label>
-                    </div>
+                    {(selectedProduct.typesMouvementsAutorises === "pret" || selectedProduct.typesMouvementsAutorises === "les_deux") && (
+                      <div className="flex items-center space-x-2 min-h-touch">
+                        <RadioGroupItem value="pret" id="pret" data-testid="radio-pret" />
+                        <Label htmlFor="pret" className="cursor-pointer flex-1">
+                          Prêt (à rendre)
+                        </Label>
+                      </div>
+                    )}
+                    {(selectedProduct.typesMouvementsAutorises === "consommation" || selectedProduct.typesMouvementsAutorises === "les_deux") && (
+                      <div className="flex items-center space-x-2 min-h-touch">
+                        <RadioGroupItem value="consommation" id="consommation" data-testid="radio-consommation" />
+                        <Label htmlFor="consommation" className="cursor-pointer flex-1">
+                          Consommation (définitif)
+                        </Label>
+                      </div>
+                    )}
                   </RadioGroup>
                 </div>
               </CardContent>
