@@ -22,7 +22,7 @@ The frontend is built with React and TypeScript, leveraging Vite, Wouter for rou
 -   **Product Creation**: A reusable component allows creation of new products from various pages, automatically setting their status to "en_attente" (pending admin validation). Dynamic dropdowns for categories, sub-sections, and units are supported.
 -   **Unified Deposit Page**: Consolidates "Return" and "Deposit" functionalities into a single page with three tabs: "Mes emprunts" (My loans), "Tous les emprunts" (All loans), and "Ajouter du stock" (Add stock). This page also allows adding products with zero stock.
 -   **Grouped Actions (Lists)**: Renamed from "Panier" (cart), this system allows users to group multiple "prendre" (take), "rendre" (return), and "déposer" (deposit) actions into a single list for validation. A global counter badge indicates pending actions.
--   **Automated Email System**: Integrates with Resend for sending automated notifications to Marine and Michael. Emails include validation summaries for grouped actions, alerts for new product creations, and reminders for overdue loans (30+ days). Includes robust error logging with result.error verification and uses HTML templates with inline CSS for compatibility.
+-   **Automated Email System**: Integrates with Resend for sending automated notifications to Marine and Michael. Emails include validation summaries for grouped actions and alerts for new product creations. Includes robust error logging with result.error verification and uses HTML templates with inline CSS for compatibility.
 -   **Home CTA Button**: Green fixed-bottom button "Valider ma liste (X items)" displayed on home page when list contains items, providing quick access to validation flow (18 Oct 2025).
 
 ### System Design Choices
