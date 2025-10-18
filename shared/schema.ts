@@ -78,11 +78,48 @@ export const insertAlertSchema = createInsertSchema(alerts).omit({
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type Alert = typeof alerts.$inferSelect;
 
+// PANIERS
+export const paniers = pgTable("paniers", {
+  id: serial("id").primaryKey(),
+  utilisateurId: integer("utilisateur_id").notNull(),
+  dateModification: timestamp("date_modification").notNull().defaultNow(),
+});
+
+export const insertPanierSchema = createInsertSchema(paniers).omit({ 
+  id: true, 
+  dateModification: true 
+});
+export type InsertPanier = z.infer<typeof insertPanierSchema>;
+export type Panier = typeof paniers.$inferSelect;
+
+// PANIER ITEMS
+export const panierItems = pgTable("panier_items", {
+  id: serial("id").primaryKey(),
+  panierId: integer("panier_id").notNull(),
+  typeAction: text("type_action").notNull(), // "prendre" | "rendre"
+  
+  // Pour PRENDRE: produit + quantité + type
+  produitId: integer("produit_id"), // nullable, utilisé pour typeAction="prendre"
+  typeMouvement: text("type_mouvement"), // "pret" | "consommation", nullable
+  
+  // Pour RENDRE: référence au mouvement existant
+  movementId: integer("movement_id"), // nullable, utilisé pour typeAction="rendre"
+  
+  quantite: integer("quantite").notNull(),
+});
+
+export const insertPanierItemSchema = createInsertSchema(panierItems).omit({ 
+  id: true
+});
+export type InsertPanierItem = z.infer<typeof insertPanierItemSchema>;
+export type PanierItem = typeof panierItems.$inferSelect;
+
 // RELATIONS
 export const usersRelations = relations(users, ({ many }) => ({
   movements: many(movements),
   productsCreated: many(products),
   alerts: many(alerts),
+  paniers: many(paniers),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -118,5 +155,28 @@ export const alertsRelations = relations(alerts, ({ one }) => ({
   product: one(products, {
     fields: [alerts.produitId],
     references: [products.id],
+  }),
+}));
+
+export const paniersRelations = relations(paniers, ({ one, many }) => ({
+  user: one(users, {
+    fields: [paniers.utilisateurId],
+    references: [users.id],
+  }),
+  items: many(panierItems),
+}));
+
+export const panierItemsRelations = relations(panierItems, ({ one }) => ({
+  panier: one(paniers, {
+    fields: [panierItems.panierId],
+    references: [paniers.id],
+  }),
+  product: one(products, {
+    fields: [panierItems.produitId],
+    references: [products.id],
+  }),
+  movement: one(movements, {
+    fields: [panierItems.movementId],
+    references: [movements.id],
   }),
 }));

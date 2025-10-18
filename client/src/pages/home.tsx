@@ -3,7 +3,7 @@ import { useCurrentUser } from "@/lib/user-context";
 import { UserSelector } from "@/components/user-selector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, ArrowDownToLine, ArrowUpFromLine, ClipboardList, AlertCircle } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, ClipboardList, AlertCircle, ShoppingCart } from "lucide-react";
 import { Link } from "wouter";
 import { LoanDurationBadge } from "@/components/loan-duration-badge";
 import type { ActiveLoan } from "@/lib/types";
@@ -22,6 +22,14 @@ export default function Home() {
     queryKey: ["/api/alerts/unread", currentUserId],
     enabled: !!currentUserId,
   });
+
+  // Récupérer le panier
+  const { data: panierData } = useQuery<{ panier: any; items: any[] }>({
+    queryKey: ["/api/panier", currentUserId],
+    enabled: !!currentUserId,
+  });
+  
+  const panierCount = panierData?.items?.length || 0;
 
   if (!currentUser) {
     return (
@@ -52,14 +60,28 @@ export default function Home() {
               <h1 className="text-xl font-semibold">FiltrePlante</h1>
               <p className="text-sm text-muted-foreground">Gestion de Stock</p>
             </div>
-            {unreadAlerts.length > 0 && (
-              <div className="relative">
-                <AlertCircle className="h-6 w-6 text-[hsl(0,84%,60%)]" data-testid="icon-alerts" />
-                <span className="absolute -top-1 -right-1 bg-[hsl(0,84%,60%)] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center" data-testid="badge-alert-count">
-                  {unreadAlerts.length}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {/* Panier Badge */}
+              <Link href="/panier">
+                <div className="relative" data-testid="link-panier">
+                  <ShoppingCart className="h-6 w-6 text-primary" data-testid="icon-panier" />
+                  {panierCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center" data-testid="badge-panier-count">
+                      {panierCount}
+                    </span>
+                  )}
+                </div>
+              </Link>
+              {/* Alertes Badge */}
+              {unreadAlerts.length > 0 && (
+                <div className="relative">
+                  <AlertCircle className="h-6 w-6 text-[hsl(0,84%,60%)]" data-testid="icon-alerts" />
+                  <span className="absolute -top-1 -right-1 bg-[hsl(0,84%,60%)] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center" data-testid="badge-alert-count">
+                    {unreadAlerts.length}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
           <UserSelector />
         </div>

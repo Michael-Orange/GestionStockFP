@@ -1,10 +1,12 @@
 // Storage interface for FiltrePlante stock management
 import { 
-  users, products, movements, alerts,
+  users, products, movements, alerts, paniers, panierItems,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type Movement, type InsertMovement,
-  type Alert, type InsertAlert
+  type Alert, type InsertAlert,
+  type Panier, type InsertPanier,
+  type PanierItem, type InsertPanierItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -35,6 +37,13 @@ export interface IStorage {
   getUnreadAlerts(userId: number): Promise<Alert[]>;
   createAlert(alert: InsertAlert): Promise<Alert>;
   markAlertAsRead(id: number): Promise<Alert>;
+  
+  // Panier
+  getPanierWithItems(userId: number): Promise<{ panier: Panier | undefined; items: (PanierItem & { product: Product | null; movement: Movement | null })[] }>;
+  addItemToPanier(userId: number, item: Omit<InsertPanierItem, "panierId">): Promise<PanierItem>;
+  removeItemFromPanier(itemId: number): Promise<void>;
+  clearPanier(userId: number): Promise<void>;
+  updatePanierTimestamp(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -168,6 +177,109 @@ export class DatabaseStorage implements IStorage {
       .where(eq(alerts.id, id))
       .returning();
     return alert;
+  }
+
+  // Panier
+  async getPanierWithItems(userId: number): Promise<{ panier: Panier | undefined; items: (PanierItem & { product: Product | null; movement: Movement | null })[] }> {
+    // Get or create panier for user
+    let [panier] = await db
+      .select()
+      .from(paniers)
+      .where(eq(paniers.utilisateurId, userId));
+
+    if (!panier) {
+      [panier] = await db
+        .insert(paniers)
+        .values({ utilisateurId: userId })
+        .returning();
+    }
+
+    // Get all items with joined product/movement data
+    const items = await db
+      .select({
+        id: panierItems.id,
+        panierId: panierItems.panierId,
+        typeAction: panierItems.typeAction,
+        produitId: panierItems.produitId,
+        typeMouvement: panierItems.typeMouvement,
+        movementId: panierItems.movementId,
+        quantite: panierItems.quantite,
+        product: products,
+        movement: movements,
+      })
+      .from(panierItems)
+      .leftJoin(products, eq(panierItems.produitId, products.id))
+      .leftJoin(movements, eq(panierItems.movementId, movements.id))
+      .where(eq(panierItems.panierId, panier.id));
+
+    return { panier, items: items as (PanierItem & { product: Product | null; movement: Movement | null })[] };
+  }
+
+  async addItemToPanier(userId: number, item: Omit<InsertPanierItem, "panierId">): Promise<PanierItem> {
+    // Get or create panier
+    let [panier] = await db
+      .select()
+      .from(paniers)
+      .where(eq(paniers.utilisateurId, userId));
+
+    if (!panier) {
+      [panier] = await db
+        .insert(paniers)
+        .values({ utilisateurId: userId })
+        .returning();
+    }
+
+    // Update timestamp
+    await db
+      .update(paniers)
+      .set({ dateModification: new Date() })
+      .where(eq(paniers.id, panier.id));
+
+    // Add item
+    const [panierItem] = await db
+      .insert(panierItems)
+      .values({ ...item, panierId: panier.id })
+      .returning();
+
+    return panierItem;
+  }
+
+  async removeItemFromPanier(itemId: number): Promise<void> {
+    // Get the item to find panier
+    const [item] = await db
+      .select()
+      .from(panierItems)
+      .where(eq(panierItems.id, itemId));
+
+    if (item) {
+      // Remove item
+      await db.delete(panierItems).where(eq(panierItems.id, itemId));
+
+      // Update panier timestamp
+      await db
+        .update(paniers)
+        .set({ dateModification: new Date() })
+        .where(eq(paniers.id, item.panierId));
+    }
+  }
+
+  async clearPanier(userId: number): Promise<void> {
+    const [panier] = await db
+      .select()
+      .from(paniers)
+      .where(eq(paniers.utilisateurId, userId));
+
+    if (panier) {
+      await db.delete(panierItems).where(eq(panierItems.panierId, panier.id));
+      await db.delete(paniers).where(eq(paniers.id, panier.id));
+    }
+  }
+
+  async updatePanierTimestamp(userId: number): Promise<void> {
+    await db
+      .update(paniers)
+      .set({ dateModification: new Date() })
+      .where(eq(paniers.utilisateurId, userId));
   }
 }
 

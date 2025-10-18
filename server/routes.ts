@@ -1,10 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProductSchema, insertMovementSchema, insertAlertSchema } from "@shared/schema";
+import { db } from "./db";
+import { insertProductSchema, insertMovementSchema, insertAlertSchema, paniers, panierItems } from "@shared/schema";
 import { parse } from "csv-parse/sync";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to calculate available stock
@@ -473,6 +475,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== PANIER ==========
+
+  // GET /api/panier/:userId - Get user's panier with items
+  app.get("/api/panier/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { panier, items } = await storage.getPanierWithItems(userId);
+      res.json({ panier, items });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/panier/add - Add item to panier
+  app.post("/api/panier/add", async (req, res) => {
+    try {
+      const { userId, typeAction, produitId, typeMouvement, movementId, quantite } = req.body;
+      
+      const item = await storage.addItemToPanier(userId, {
+        typeAction,
+        produitId: produitId || null,
+        typeMouvement: typeMouvement || null,
+        movementId: movementId || null,
+        quantite,
+      });
+      
+      res.json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // DELETE /api/panier/item/:itemId - Remove item from panier
+  app.delete("/api/panier/item/:itemId", async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.itemId);
+      await storage.removeItemFromPanier(itemId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // DELETE /api/panier/:userId/clear - Clear user's panier
+  app.delete("/api/panier/:userId/clear", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      await storage.clearPanier(userId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // POST /api/panier/:userId/validate - Validate panier and create movements
+  app.post("/api/panier/:userId/validate", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { panier, items } = await storage.getPanierWithItems(userId);
+
+      if (!items || items.length === 0) {
+        return res.status(400).json({ error: "Panier vide" });
+      }
+
+      // TODO: Wrap all operations in a transaction for atomicity
+      // Currently not transactional - if an error occurs mid-loop, partial changes persist
+      const results = [];
+
+      // Process each item
+      for (const item of items) {
+        if (item.typeAction === "prendre") {
+          // Validate product
+          const product = item.product;
+          if (!product) {
+            throw new Error(`Produit non trouvé pour item ${item.id}`);
+          }
+
+          if (product.statut !== "valide") {
+            throw new Error(`Le produit "${product.nom}" doit être validé avant utilisation`);
+          }
+
+          // Check movement type is allowed
+          if (product.typesMouvementsAutorises !== "les_deux") {
+            if (product.typesMouvementsAutorises !== item.typeMouvement) {
+              throw new Error(`Le produit "${product.nom}" n'autorise que le type "${product.typesMouvementsAutorises}"`);
+            }
+          }
+
+          // Check stock
+          const stockDisponible = await calculateAvailableStock(product.id, product.stockActuel);
+          if (item.quantite > stockDisponible) {
+            throw new Error(`Stock insuffisant pour "${product.nom}" (disponible: ${stockDisponible})`);
+          }
+
+          // Create movement
+          const movementData: any = {
+            utilisateurId: userId,
+            produitId: product.id,
+            quantite: item.quantite,
+            type: item.typeMouvement,
+            statut: item.typeMouvement === "pret" ? "en_cours" : "termine",
+          };
+
+          if (item.typeMouvement === "pret") {
+            const returnDate = new Date();
+            returnDate.setDate(returnDate.getDate() + 15);
+            movementData.dateRetourPrevu = returnDate;
+          }
+
+          const movement = await storage.createMovement(movementData);
+
+          // If consumption, update stock immediately
+          if (item.typeMouvement === "consommation") {
+            await storage.updateProduct(product.id, {
+              stockActuel: product.stockActuel - item.quantite,
+            });
+          }
+
+          results.push({ type: "prendre", movement });
+        } else if (item.typeAction === "rendre") {
+          // Return movement
+          const movement = item.movement;
+          if (!movement) {
+            throw new Error(`Mouvement non trouvé pour item ${item.id}`);
+          }
+
+          if (item.quantite > movement.quantite) {
+            throw new Error("Quantité invalide");
+          }
+
+          if (item.quantite < movement.quantite) {
+            // Partial return
+            await storage.createMovement({
+              utilisateurId: movement.utilisateurId,
+              produitId: movement.produitId,
+              quantite: item.quantite,
+              type: "retour",
+              statut: "termine",
+              dateRetourEffectif: new Date(),
+            });
+            
+            await storage.updateMovement(movement.id, {
+              quantite: movement.quantite - item.quantite,
+            });
+          } else {
+            // Full return
+            await storage.updateMovement(movement.id, {
+              statut: "termine",
+              dateRetourEffectif: new Date(),
+            });
+          }
+
+          results.push({ type: "rendre", movementId: movement.id });
+        }
+      }
+
+      // Clear panier after successful validation
+      await storage.clearPanier(userId);
+
+      res.json({ success: true, results });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   });
 
