@@ -638,6 +638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         typeMouvement: itemData.typeEmprunt || null,
         movementId: itemData.movementId || itemData.mouvementId || null, // Support both spellings
         quantite: itemData.quantite,
+        quantitePerdue: itemData.quantitePerdue || 0,
       });
       
       res.json(item);
@@ -740,11 +741,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Mouvement non trouvé pour item ${item.id}`);
           }
 
-          if (item.quantite > movement.quantite) {
-            throw new Error("Quantité invalide");
+          const totalReturned = item.quantite + (item.quantitePerdue || 0);
+          if (totalReturned > movement.quantite) {
+            throw new Error("Quantité totale (rendue + perdue) invalide");
           }
 
-          if (item.quantite < movement.quantite) {
+          if (totalReturned < movement.quantite) {
             // Partial return
             await storage.createMovement({
               utilisateurId: movement.utilisateurId,
@@ -753,16 +755,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: "retour",
               statut: "termine",
               dateRetourEffectif: new Date(),
+              quantitePerdue: item.quantitePerdue || 0,
             });
             
             await storage.updateMovement(movement.id, {
-              quantite: movement.quantite - item.quantite,
+              quantite: movement.quantite - totalReturned,
             });
           } else {
             // Full return
             await storage.updateMovement(movement.id, {
               statut: "termine",
               dateRetourEffectif: new Date(),
+              quantitePerdue: item.quantitePerdue || 0,
             });
           }
 
@@ -804,6 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           prendre: [],
           rendre: [],
           deposer: [],
+          perdu: [],
         },
       };
 
@@ -837,11 +842,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // For returns, get product from pre-fetched map
           const product = returnProductsMap.get(item.movement.produitId);
           if (product) {
-            validationData.items.rendre!.push({
-              nom: product.nom,
-              quantite: item.quantite,
-              unite: product.unite,
-            });
+            if (item.quantite > 0) {
+              validationData.items.rendre!.push({
+                nom: product.nom,
+                quantite: item.quantite,
+                unite: product.unite,
+              });
+            }
+            if ((item.quantitePerdue || 0) > 0) {
+              validationData.items.perdu!.push({
+                nom: product.nom,
+                quantite: item.quantitePerdue || 0,
+                unite: product.unite,
+              });
+            }
           }
         } else if (item.typeAction === "deposer" && item.product) {
           validationData.items.deposer!.push({

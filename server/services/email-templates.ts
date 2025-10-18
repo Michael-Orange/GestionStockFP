@@ -82,6 +82,10 @@ const baseStyles = `
       background: #fed7aa;
       color: #9a3412;
     }
+    .badge-red {
+      background: #fecaca;
+      color: #991b1b;
+    }
     .footer {
       background: #1f2937;
       color: #9ca3af;
@@ -131,6 +135,7 @@ export interface ValidationPanierData {
     prendre?: Array<{ nom: string; quantite: number; unite: string; type: string }>;
     rendre?: Array<{ nom: string; quantite: number; unite: string }>;
     deposer?: Array<{ nom: string; quantite: number; unite: string }>;
+    perdu?: Array<{ nom: string; quantite: number; unite: string }>;
   };
 }
 
@@ -215,6 +220,26 @@ export function createValidationPanierEmail(data: ValidationPanierData): string 
     sectionsHtml += `
       <div class="section">
         <div class="section-title">📥 DÉPOSÉ EN STOCK ✅ (${items.deposer.length})</div>
+        ${itemsHtml}
+      </div>
+    `;
+  }
+  
+  // Section MATÉRIEL PERDU
+  if (items.perdu && items.perdu.length > 0) {
+    const itemsHtml = items.perdu.map(item => `
+      <div class="item">
+        <div class="item-name">
+          ${item.nom}
+          <span class="badge badge-red">PERDU</span>
+        </div>
+        <div class="item-details" style="color: #991b1b; font-weight: 600;">-${item.quantite} ${item.unite}</div>
+      </div>
+    `).join('');
+    
+    sectionsHtml += `
+      <div class="section" style="border-left: 3px solid #991b1b;">
+        <div class="section-title" style="color: #991b1b; border-bottom-color: #991b1b;">⚠️ MATÉRIEL PERDU (${items.perdu.length})</div>
         ${itemsHtml}
       </div>
     `;
