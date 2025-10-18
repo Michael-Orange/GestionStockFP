@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCurrentUser } from "@/lib/user-context";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppHeader } from "@/components/app-header";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Check, X, Edit, AlertTriangle, Download } from "lucide-react";
+import { Check, X, Edit, AlertTriangle, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock } from "@/lib/types";
@@ -125,25 +126,7 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setLocation("/")}
-              data-testid="button-back"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold">Administration</h1>
-              <p className="text-sm text-muted-foreground">Validation des produits</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppHeader showBack={true} backPath="/" title="Admin" />
 
       <div className="px-4 py-6 space-y-6">
         {/* Export CSV */}

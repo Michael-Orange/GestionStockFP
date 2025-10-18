@@ -35,7 +35,8 @@ export function CreateProductForm({
   const [newCategorieInput, setNewCategorieInput] = useState("");
   const [newProductSousSection, setNewProductSousSection] = useState("");
   const [newSousSectionInput, setNewSousSectionInput] = useState("");
-  const [newProductUnite, setNewProductUnite] = useState("u");
+  const [newProductUnite, setNewProductUnite] = useState("");
+  const [newUniteInput, setNewUniteInput] = useState("");
   const [newProductQuantite, setNewProductQuantite] = useState(1);
 
   // Récupérer les catégories
@@ -47,6 +48,11 @@ export function CreateProductForm({
   const { data: sousSections = [] } = useQuery<string[]>({
     queryKey: ["/api/categories", newProductCategorie, "sous-sections"],
     enabled: !!newProductCategorie && newProductCategorie !== "__nouvelle__",
+  });
+
+  // Récupérer les unités existantes
+  const { data: units = [] } = useQuery<string[]>({
+    queryKey: ["/api/units"],
   });
 
   // Mutation pour créer un nouveau produit
@@ -77,13 +83,14 @@ export function CreateProductForm({
   });
 
   const handleCreateProduct = () => {
-    if (!newProductName || !newProductCategorie || !newProductSousSection) return;
+    if (!newProductName || !newProductCategorie || !newProductSousSection || !newProductUnite) return;
     
     const finalCategorie = newProductCategorie === "__nouvelle__" ? newCategorieInput : newProductCategorie;
     const finalSousSection = newProductSousSection === "__nouvelle__" ? newSousSectionInput : newProductSousSection;
+    const finalUnite = newProductUnite === "__nouvelle__" ? newUniteInput : newProductUnite;
     
     // Validation défensive: ne pas envoyer de chaînes vides
-    if (!finalCategorie.trim() || !finalSousSection.trim()) {
+    if (!finalCategorie.trim() || !finalSousSection.trim() || !finalUnite.trim()) {
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs obligatoires",
@@ -96,7 +103,7 @@ export function CreateProductForm({
       nom: newProductName,
       categorie: finalCategorie,
       sousSection: finalSousSection,
-      unite: newProductUnite,
+      unite: finalUnite,
       stockActuel: newProductQuantite,
       stockMinimum: 0,
     });
@@ -177,15 +184,26 @@ export function CreateProductForm({
             <Label htmlFor="unite">Unité *</Label>
             <Select value={newProductUnite} onValueChange={setNewProductUnite}>
               <SelectTrigger className="min-h-touch" data-testid="select-unit">
-                <SelectValue />
+                <SelectValue placeholder="Sélectionner une unité" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="u">Unité (u)</SelectItem>
-                <SelectItem value="m">Mètre (m)</SelectItem>
-                <SelectItem value="kg">Kilogramme (kg)</SelectItem>
-                <SelectItem value="L">Litre (L)</SelectItem>
+                {units.map((unit) => (
+                  <SelectItem key={unit} value={unit}>
+                    {unit}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__nouvelle__">Nouvelle unité...</SelectItem>
               </SelectContent>
             </Select>
+            {newProductUnite === "__nouvelle__" && (
+              <Input
+                value={newUniteInput}
+                onChange={(e) => setNewUniteInput(e.target.value)}
+                placeholder="Nom de l'unité (ex: m, kg, L)"
+                className="min-h-touch"
+                data-testid="input-new-unit"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
@@ -230,7 +248,9 @@ export function CreateProductForm({
             !newProductCategorie ||
             (newProductCategorie === "__nouvelle__" && !newCategorieInput) ||
             !newProductSousSection ||
-            (newProductSousSection === "__nouvelle__" && !newSousSectionInput)
+            (newProductSousSection === "__nouvelle__" && !newSousSectionInput) ||
+            !newProductUnite ||
+            (newProductUnite === "__nouvelle__" && !newUniteInput)
           }
           data-testid="button-create-product"
         >

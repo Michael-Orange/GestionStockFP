@@ -22,6 +22,7 @@ export interface IStorage {
   getProduct(id: number): Promise<Product | undefined>;
   getAllProducts(): Promise<Product[]>;
   getProductsByStatus(statut: string): Promise<Product[]>;
+  getAllUnits(): Promise<string[]>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product>;
   deleteProduct(id: number): Promise<void>;
@@ -85,6 +86,14 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsByStatus(statut: string): Promise<Product[]> {
     return db.select().from(products).where(eq(products.statut, statut));
+  }
+
+  async getAllUnits(): Promise<string[]> {
+    const result = await db
+      .selectDistinct({ unite: products.unite })
+      .from(products)
+      .orderBy(products.unite);
+    return result.map(r => r.unite);
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {

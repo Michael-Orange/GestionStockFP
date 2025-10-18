@@ -157,6 +157,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/units - Get all unique units used in products
+  app.get("/api/units", async (req, res) => {
+    try {
+      const units = await storage.getAllUnits();
+      res.json(units);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/products/export-csv - Export all products with quantities (admin)
   app.get("/api/products/export-csv", async (req, res) => {
     try {
@@ -730,6 +740,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           results.push({ type: "rendre", movementId: movement.id });
+        } else if (item.typeAction === "deposer") {
+          // Deposit to stock
+          const product = item.product;
+          if (!product) {
+            throw new Error(`Produit non trouvé pour item ${item.id}`);
+          }
+
+          // Update product stock
+          await storage.updateProduct(product.id, {
+            stockActuel: product.stockActuel + item.quantite,
+          });
+
+          // Create deposit movement
+          const movement = await storage.createMovement({
+            utilisateurId: userId,
+            produitId: product.id,
+            quantite: item.quantite,
+            type: "depot",
+            statut: "termine",
+          });
+
+          results.push({ type: "deposer", movement });
         }
       }
 

@@ -1,8 +1,9 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCurrentUser } from "@/lib/user-context";
+import { AppHeader } from "@/components/app-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, ShoppingCart, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Trash2, ShoppingCart, CheckCircle2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -25,8 +26,9 @@ export default function Liste() {
   });
 
   const items = data?.items || [];
-  const prendreitems = items.filter(item => item.typeAction === "prendre");
+  const prendreItems = items.filter(item => item.typeAction === "prendre");
   const rendreItems = items.filter(item => item.typeAction === "rendre");
+  const deposerItems = items.filter(item => item.typeAction === "deposer");
 
   // Remove item mutation
   const removeItemMutation = useMutation({
@@ -124,25 +126,7 @@ export default function Liste() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-10">
-        <div className="px-4 py-4 flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="icon" data-testid="button-back">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Ma Liste
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {items.length} article{items.length > 1 ? "s" : ""}
-            </p>
-          </div>
-        </div>
-      </header>
+      <AppHeader showBack={true} backPath="/" title="Ma liste" />
 
       <div className="px-4 py-6 space-y-6">
         {isLoading ? (
@@ -166,13 +150,13 @@ export default function Liste() {
         ) : (
           <>
             {/* Items à PRENDRE */}
-            {prendreitems.length > 0 && (
+            {prendreItems.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4 text-[hsl(142,71%,45%)]">
-                  À PRENDRE ({prendreitems.length})
+                  À PRENDRE ({prendreItems.length})
                 </h2>
                 <div className="space-y-3">
-                  {prendreitems.map((item) => (
+                  {prendreItems.map((item) => (
                     <Card key={item.id} className="hover-elevate" data-testid={`card-item-${item.id}`}>
                       <CardContent className="py-4">
                         <div className="flex items-start justify-between gap-3">
@@ -241,6 +225,42 @@ export default function Liste() {
               </div>
             )}
 
+            {/* Items à DÉPOSER */}
+            {deposerItems.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4 text-[hsl(25,95%,53%)]">
+                  À DÉPOSER ({deposerItems.length})
+                </h2>
+                <div className="space-y-3">
+                  {deposerItems.map((item) => (
+                    <Card key={item.id} className="hover-elevate" data-testid={`card-item-${item.id}`}>
+                      <CardContent className="py-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold truncate" data-testid={`text-product-${item.id}`}>
+                              {item.product?.nom || "Produit inconnu"}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Quantité: {item.quantite} {item.product?.unite}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeItemMutation.mutate(item.id)}
+                            disabled={removeItemMutation.isPending}
+                            data-testid={`button-remove-${item.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-[hsl(0,84%,60%)]" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="space-y-3">
               <Button
@@ -254,7 +274,7 @@ export default function Liste() {
               </Button>
 
               <Button
-                variant="outline"
+                variant="destructive"
                 onClick={() => clearListeMutation.mutate()}
                 disabled={clearListeMutation.isPending}
                 className="w-full h-12"

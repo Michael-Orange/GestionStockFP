@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCurrentUser } from "@/lib/user-context";
 import { useLocation } from "wouter";
+import { AppHeader } from "@/components/app-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronLeft, Search, Package, Minus, Plus, ShoppingCart } from "lucide-react";
+import { Search, Package, Minus, Plus, ShoppingCart } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import { CreateProductForm } from "@/components/create-product-form";
 import { useToast } from "@/hooks/use-toast";
@@ -199,59 +200,27 @@ export default function Prendre() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                if (selectedProduct || showNewProductForm) {
-                  setSelectedProduct(null);
-                  setShowNewProductForm(false);
-                  setQuantite(1);
-                } else if (selectedSousSection) {
-                  setSelectedSousSection("");
-                  setViewMode("sous-sections");
-                } else if (selectedCategorie) {
-                  setSelectedCategorie("");
-                  setViewMode("categories");
-                } else {
-                  // Retour à la home
-                  if (listeCount > 0) {
-                    setShowExitDialog(true);
-                  } else {
-                    setLocation("/");
-                  }
-                }
-              }}
-              data-testid="button-back"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-semibold">Prendre</h1>
-              {renderBreadcrumb()}
-            </div>
+      <AppHeader showBack={true} backPath="/" title="PRENDRE" />
+      
+      {/* Breadcrumb & Search */}
+      <div className="bg-card border-b px-4 py-4 space-y-3">
+        {renderBreadcrumb()}
+        
+        {/* Search Bar */}
+        {!selectedProduct && !showNewProductForm && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Rechercher un produit..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 min-h-touch"
+              data-testid="input-search-product"
+            />
           </div>
-
-          {/* Search Bar */}
-          {!selectedProduct && !showNewProductForm && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Rechercher un produit..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 min-h-touch"
-                data-testid="input-search-product"
-              />
-            </div>
-          )}
-        </div>
-      </header>
+        )}
+      </div>
 
       <div className="px-4 py-6 space-y-4">
         {showNewProductForm ? (

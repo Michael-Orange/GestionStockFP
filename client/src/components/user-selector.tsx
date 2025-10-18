@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Lock } from "lucide-react";
+import { Check, ChevronDown, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -34,6 +34,7 @@ export function UserSelector() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [selectedAdminId, setSelectedAdminId] = useState<number | null>(null);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const { currentUserId, setCurrentUserId, currentUser } = useCurrentUser();
   const { toast } = useToast();
@@ -156,17 +157,34 @@ export function UserSelector() {
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="admin-password">Mot de passe</Label>
-              <Input
-                id="admin-password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isVerifying}
-                data-testid="input-admin-password"
-                autoFocus
-                className="min-h-touch"
-              />
+              <div className="relative">
+                <Input
+                  id="admin-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isVerifying}
+                  data-testid="input-admin-password"
+                  autoFocus
+                  className="min-h-touch pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isVerifying}
+                  data-testid="button-toggle-password"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
             </div>
             <div className="flex gap-3 justify-end">
               <Button

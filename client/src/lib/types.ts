@@ -27,9 +27,9 @@ export interface StockFilter {
 }
 
 export const TEAM_MEMBERS = [
-  { id: 1, nom: "Marine", role: "utilisateur", email: "marine@filtreplante.com" },
-  { id: 2, nom: "Fatou", role: "utilisateur", email: "fatou@filtreplante.com" },
-  { id: 3, nom: "Michael", role: "admin", email: "michael@filtreplante.com" },
   { id: 4, nom: "Cheikh", role: "utilisateur", email: "cheikh@filtreplante.com" },
+  { id: 2, nom: "Fatou", role: "utilisateur", email: "fatou@filtreplante.com" },
+  { id: 1, nom: "Marine", role: "admin", email: "marine@filtreplante.com" },
+  { id: 3, nom: "Michael", role: "admin", email: "michael@filtreplante.com" },
   { id: 5, nom: "Papa", role: "utilisateur", email: "papa@filtreplante.com" },
 ] as const;

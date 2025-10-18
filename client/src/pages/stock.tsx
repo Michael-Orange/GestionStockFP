@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { AppHeader } from "@/components/app-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, ChevronDown, ChevronUp } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import type { ProductWithStock } from "@/lib/types";
 import {
@@ -15,7 +14,6 @@ import {
 } from "@/components/ui/collapsible";
 
 export default function Stock() {
-  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"tous" | "ok" | "faible" | "vide">("tous");
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
@@ -64,45 +62,33 @@ export default function Stock() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-3 mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setLocation("/")}
-              data-testid="button-back"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-semibold">Stock</h1>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Rechercher un produit..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 min-h-touch"
-              data-testid="input-search-product"
-            />
-          </div>
-
-          {/* Filter Tabs */}
-          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-            <TabsList className="w-full grid grid-cols-4">
-              <TabsTrigger value="tous" data-testid="filter-tous">Tous</TabsTrigger>
-              <TabsTrigger value="ok" data-testid="filter-ok">OK</TabsTrigger>
-              <TabsTrigger value="faible" data-testid="filter-faible">Faible</TabsTrigger>
-              <TabsTrigger value="vide" data-testid="filter-vide">Vide</TabsTrigger>
-            </TabsList>
-          </Tabs>
+      <AppHeader showBack={true} backPath="/" title="STOCK" />
+      
+      {/* Search & Filters */}
+      <div className="bg-card border-b px-4 py-4 space-y-4">
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Rechercher un produit..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 min-h-touch"
+            data-testid="input-search-product"
+          />
         </div>
-      </header>
+
+        {/* Filter Tabs */}
+        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+          <TabsList className="w-full grid grid-cols-4">
+            <TabsTrigger value="tous" data-testid="filter-tous">Tous</TabsTrigger>
+            <TabsTrigger value="ok" data-testid="filter-ok">OK</TabsTrigger>
+            <TabsTrigger value="faible" data-testid="filter-faible">Faible</TabsTrigger>
+            <TabsTrigger value="vide" data-testid="filter-vide">Vide</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       <div className="px-4 py-6 space-y-4">
         {isLoading ? (

@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCurrentUser } from "@/lib/user-context";
 import { useLocation } from "wouter";
+import { AppHeader } from "@/components/app-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Package, Plus, Minus } from "lucide-react";
+import { Package, Plus, Minus } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import { LoanDurationBadge } from "@/components/loan-duration-badge";
 import { CreateProductForm } from "@/components/create-product-form";
@@ -83,29 +84,30 @@ export default function Deposer() {
     },
   });
 
-  const depositMutation = useMutation({
+  const addDepositToListeMutation = useMutation({
     mutationFn: async (data: { produitId: number; quantite: number }) => {
-      return apiRequest("POST", "/api/movements/deposit", {
-        ...data,
-        utilisateurId: currentUserId,
+      return apiRequest("POST", "/api/liste/add", {
+        userId: currentUserId,
+        item: {
+          typeAction: "deposer",
+          produitId: data.produitId,
+          quantite: data.quantite,
+        },
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
-        title: "Dépôt enregistré",
+        title: "Ajouté à la liste",
         description: `${selectedProduct?.nom} × ${depositQuantite} ${selectedProduct?.unite}`,
       });
       setSelectedProduct(null);
       setDepositQuantite(1);
-      setViewMode("categories");
-      setSelectedCategorie("");
-      setSelectedSousSection("");
     },
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible d'enregistrer le dépôt",
+        description: error.message || "Impossible d'ajouter à la liste",
         variant: "destructive",
       });
     },
@@ -120,9 +122,9 @@ export default function Deposer() {
     });
   };
 
-  const handleDeposit = () => {
+  const handleAddDepositToListe = () => {
     if (!selectedProduct) return;
-    depositMutation.mutate({
+    addDepositToListeMutation.mutate({
       produitId: selectedProduct.id,
       quantite: depositQuantite,
     });
@@ -181,25 +183,14 @@ export default function Deposer() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBack}
-              data-testid="button-back"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-semibold">Déposer</h1>
-              {activeTab === "ajouter-stock" && renderBreadcrumb()}
-            </div>
-          </div>
+      <AppHeader showBack={true} backPath="/" title="DÉPOSER" />
+      
+      {/* Breadcrumb */}
+      {activeTab === "ajouter-stock" && (
+        <div className="bg-card border-b px-4 py-3">
+          {renderBreadcrumb()}
         </div>
-      </header>
+      )}
 
       <div className="px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -531,11 +522,11 @@ export default function Deposer() {
                 <Button
                   className="w-full"
                   size="lg"
-                  onClick={handleDeposit}
-                  disabled={depositMutation.isPending || depositQuantite < 1}
-                  data-testid="button-validate-deposit"
+                  onClick={handleAddDepositToListe}
+                  disabled={addDepositToListeMutation.isPending || depositQuantite < 1}
+                  data-testid="button-add-deposit-to-liste"
                 >
-                  {depositMutation.isPending ? "Enregistrement..." : "VALIDER LE DÉPÔT"}
+                  {addDepositToListeMutation.isPending ? "Ajout..." : "Ajouter à ma liste"}
                 </Button>
               </div>
             ) : viewMode === "categories" ? (

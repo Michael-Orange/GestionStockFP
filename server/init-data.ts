@@ -15,8 +15,8 @@ export async function initializeData() {
     if (existingUsers.length === 0) {
       console.log("📝 Creating default users...");
       
-      // Hash password for admins: "Fplante@Stock1!"
-      const adminPasswordHash = await bcrypt.hash("Fplante@Stock1!", 10);
+      // Hash password for admins: "Fp2025"
+      const adminPasswordHash = await bcrypt.hash("Fp2025", 10);
       
       const defaultUsers = [
         { nom: "Marine", email: "marine@filtreplante.com", role: "admin", passwordHash: adminPasswordHash },
@@ -33,12 +33,12 @@ export async function initializeData() {
     } else {
       console.log(`✅ Users already exist: ${existingUsers.length}`);
       
-      // Mise à jour des mots de passe admin si nécessaire
-      const adminPasswordHash = await bcrypt.hash("Fplante@Stock1!", 10);
+      // Mise à jour des mots de passe admin si nécessaire (changement vers "Fp2025")
+      const adminPasswordHash = await bcrypt.hash("Fp2025", 10);
       for (const user of existingUsers) {
-        if (user.role === "admin" && !user.passwordHash) {
+        if (user.role === "admin") {
           await storage.updateUserPassword(user.id, adminPasswordHash);
-          console.log(`🔒 Mot de passe ajouté pour ${user.nom}`);
+          console.log(`🔒 Mot de passe mis à jour pour ${user.nom}`);
         }
       }
     }
