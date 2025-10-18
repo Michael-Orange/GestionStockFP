@@ -69,7 +69,23 @@ export async function sendEmail(storage: DatabaseStorage, options: SendEmailOpti
       html: options.html,
     });
 
-    // Logger le succès
+    // Vérifier si Resend a retourné une erreur
+    if (result.error) {
+      // Logger l'erreur Resend
+      await storage.createEmailLog({
+        type: options.type,
+        destinataires: options.to,
+        sujet: options.subject,
+        statutEnvoi: 'error',
+        erreur: result.error.message || JSON.stringify(result.error),
+        metadata: options.metadata ? JSON.stringify(options.metadata) : null,
+      });
+
+      console.error(`❌ Erreur Resend: ${options.subject}`, result.error);
+      return false;
+    }
+
+    // Logger le succès uniquement si pas d'erreur
     await storage.createEmailLog({
       type: options.type,
       destinataires: options.to,
@@ -83,7 +99,7 @@ export async function sendEmail(storage: DatabaseStorage, options: SendEmailOpti
     return true;
 
   } catch (error: any) {
-    // Logger l'erreur
+    // Logger l'erreur d'exception
     await storage.createEmailLog({
       type: options.type,
       destinataires: options.to,
