@@ -1,36 +1,54 @@
 # Design Guidelines - FiltrePlante Stock Management App
 
 ## Design Approach
-**System-Based Approach**: Material Design principles adapted for mobile-first utility application
-**Rationale**: Function-focused inventory management requiring clarity, efficiency, and data visibility over aesthetic novelty
+**System-Based Approach**: Material Design principles adapted for mobile-first utility application with FiltrePlante brand identity
+**Rationale**: Function-focused inventory management requiring clarity, efficiency, and data visibility with cohesive green/earth color palette
 
 ## Core Design Principles
 1. **Mobile-First Efficiency**: Every interaction optimized for one-handed smartphone use
 2. **Information Hierarchy**: Stock status visible at all times without extra taps
 3. **Progressive Disclosure**: Show critical info first, details on demand
 4. **Visual Feedback**: Immediate confirmation of all actions
+5. **Brand Cohesion**: Consistent use of FiltrePlante green/earth palette throughout
 
-## Color Palette
+## 🌿 FiltrePlante Color Palette
 
-### Light Mode
-- **Primary**: 142 71% 45% (Green - represents healthy stock)
-- **Background**: 0 0% 98%
-- **Surface**: 0 0% 100%
-- **Text Primary**: 0 0% 13%
-- **Text Secondary**: 0 0% 45%
+### Primary Brand Colors
+- **Vert Principal** (#2E7D32): Header, navigation principale, éléments de marque
+- **Vert Vif** (#4CAF50): Bouton PRENDRE, validations, confirmations positives
+- **Bleu Eau** (#1565C0): Bouton DÉPOSER, informations, actions secondaires
+- **Beige Terre** (#8D6E63): Bouton STOCK, sections neutres, éléments tertiaires
+- **Vert Clair** (#E8F5E8): Fonds de sections, arrière-plans doux, zones admin
 
-### Status Colors (Critical for Stock Indicators)
-- **Stock OK (Green)**: 142 71% 45%
-- **Stock Low (Orange)**: 25 95% 53%
-- **Stock Empty (Red)**: 0 84% 60%
-- **Pending Validation (Blue)**: 217 91% 60%
+### Status & Alert Colors
+- **Stock OK** (#4CAF50 - Vert Vif): Texte et indicateurs pour stock disponible
+- **Stock Faible** (#FF8F00 - Orange Alerte): Texte et badges pour stock bas
+- **Stock Vide** (#D32F2F - Rouge Urgent): Texte et alertes pour rupture
+- **Emprunts Actifs** (#1565C0 - Bleu Eau): Badges et compteurs d'emprunts
+
+### Light Mode (Couleurs de fond et texte)
+- **Background**: 0 0% 98% (Blanc cassé)
+- **Surface**: 0 0% 100% (Blanc pur)
+- **Text Primary**: 0 0% 13% (Presque noir)
+- **Text Secondary**: 0 0% 45% (Gris moyen)
+- **Border**: 0 0% 85% (Gris clair)
 
 ### Dark Mode
-- **Primary**: 142 71% 55%
-- **Background**: 0 0% 7%
-- **Surface**: 0 0% 11%
-- **Text Primary**: 0 0% 98%
-- **Text Secondary**: 0 0% 65%
+- **Primary**: Vert Vif adapté (#66BB6A)
+- **Background**: 0 0% 7% (Presque noir)
+- **Surface**: 0 0% 11% (Gris très foncé)
+- **Text Primary**: 0 0% 98% (Blanc cassé)
+- **Text Secondary**: 0 0% 65% (Gris clair)
+
+### HSL Conversions for Tailwind
+Pour utiliser dans index.css (format HSL sans parenthèses):
+- **Vert Principal** (#2E7D32): 123 48% 33%
+- **Vert Vif** (#4CAF50): 122 39% 49%
+- **Bleu Eau** (#1565C0): 210 79% 43%
+- **Beige Terre** (#8D6E63): 15 25% 47%
+- **Orange Alerte** (#FF8F00): 34 100% 50%
+- **Rouge Urgent** (#D32F2F): 0 70% 51%
+- **Vert Clair** (#E8F5E8): 120 31% 94%
 
 ## Typography
 - **Font Family**: 'Inter' via Google Fonts CDN
@@ -48,125 +66,148 @@
 
 ## Component Specifications
 
-### Navigation
-- **Bottom Navigation Bar** (fixed): 4 main actions (PRENDRE, RENDRE, DÉPOSER, STOCK)
-- Icons + labels for clarity
-- Active state with primary color fill
-- Height: 72px for easy thumb access
+### Header & Navigation
+- **Header "FiltrePlante"**: Fond Vert Principal (#2E7D32), texte blanc, hauteur 64px
+- **User Selector**: Intégré dans le header, texte blanc sur fond vert
+- **Badge session/panier**: Vert Vif (#4CAF50) avec nombre en blanc, position top-right du header
 
-### User Selection Dropdown
-- Large tap target (min 48px height)
-- Current user always visible in header
-- Simple list selection (no password complexity)
+### Action Buttons (Home Page)
+- **Bouton PRENDRE**: Fond Vert Vif (#4CAF50), texte blanc, icône blanche
+- **Bouton DÉPOSER**: Fond Bleu Eau (#1565C0), texte blanc, icône blanche
+- **Bouton STOCK**: Fond Beige Terre (#8D6E63), texte blanc, icône blanche
+- **Bouton RENDRE**: Style outline avec bordure Vert Principal, texte Vert Principal
+- Minimum height: 56px (mobile optimisé)
+- Border radius: 12px (coins arrondis modernes)
+- Box shadow: 0 2px 8px rgba(0,0,0,0.12) (ombres légères)
 
 ### Product Cards
 Display format: **"Product Name (current/total)"**
-- Example: "MARTEAU (3/5)"
-- Status indicator dot (left side, 8px diameter)
+- Status indicator dot (left side, 10px diameter)
 - Product name (bold, 16px)
 - Stock fraction (regular, 14px, aligned right)
-- Card height: min 64px for comfortable tapping
-
-### Category Navigation
-- **Breadcrumb trail** at top: Catégorie → Sous-section → Produit
-- Large category cards (min 80px height)
-- Icon or emoji visual identifier per category
-- Item count badge on each category
-
-### Search Bar
-- Sticky at page top
-- Clear button always visible when text present
-- Real-time filtering
-- Placeholder: "Rechercher un produit..."
-
-### Action Buttons
-- **Primary CTA**: Full-width on mobile, primary green color
-- **Secondary**: Outline style with border
-- Minimum height: 48px
+- Card height: min 72px for comfortable tapping
 - Border radius: 8px
-- Text: 500 weight, 15px
+- Hover: subtle elevation shadow
 
-### Stock Display Badge
-- Colored background based on status
-- White text for contrast
-- Rounded pill shape (full rounded corners)
-- Format: "5 disponibles" or "Stock faible (2)" or "Rupture"
+### Stock Display Badges
+- **Stock OK**: Fond Vert Vif (#4CAF50), texte blanc
+- **Stock Faible**: Fond Orange Alerte (#FF8F00), texte blanc
+- **Stock Vide**: Fond Rouge Urgent (#D32F2F), texte blanc
+- Format: "5 disponibles" ou "Stock faible (2)" ou "Rupture"
+- Border radius: 16px (pill shape)
+- Padding: py-1 px-3
+- Font weight: 500
+
+### Loan Duration Badges
+- **< 7 jours**: Fond Vert Vif (#4CAF50), texte blanc
+- **7-14 jours**: Fond Orange Alerte (#FF8F00), texte blanc
+- **15+ jours**: Fond Rouge Urgent (#D32F2F), texte blanc
+- Format: "Emprunté depuis X jours"
+- Border radius: 16px (pill shape)
 
 ### Forms (Quantity Input)
 - Large numeric input with +/- steppers
+- Boutons +/- avec fond Vert Vif (#4CAF50), texte blanc
 - Minimum touch target: 56px for +/- buttons
 - Current value centered and bold
-- Max quantity validation shown below
+- Border radius: 8px
 
-### Radio Buttons (Prêt/Consommation)
-- Large touch targets (min 48px)
-- Clear visual distinction when selected
-- Label text 16px for readability
-
-### Loan Duration Display
-- Format: "Emprunté depuis X jours"
-- Color coding: Green (<7 days), Orange (7-14 days), Red (15+ days)
-- Badge style for quick recognition
-
-### Admin Validation Interface
-- Pending products: Yellow/amber highlight
-- Action buttons horizontal layout: Valider (green), Modifier (blue), Supprimer (red)
-- Clear product details preview
+### Admin Interface
+- **Background**: Vert Clair (#E8F5E8) pour les sections admin
+- **Pending products**: Border orange (#FF8F00), fond blanc
+- **Action buttons**: 
+  - Valider: Fond Vert Vif (#4CAF50)
+  - Modifier: Fond Bleu Eau (#1565C0)
+  - Supprimer: Fond Rouge Urgent (#D32F2F)
+- Clear product details preview with proper spacing
 
 ### Alerts/Notifications
 - Toast notifications: Top of screen, auto-dismiss 3s
-- Critical alerts: Persistent banner until dismissed
-- Badge count on user profile for pending items
+- Success: Fond Vert Vif (#4CAF50)
+- Warning: Fond Orange Alerte (#FF8F00)
+- Error: Fond Rouge Urgent (#D32F2F)
+- Info: Fond Bleu Eau (#1565C0)
+- Border radius: 8px
+- Box shadow: 0 4px 12px rgba(0,0,0,0.15)
+
+## ✨ Visual Enhancements
+
+### Coins Arrondis (Border Radius)
+- **Boutons principaux**: 12px (rounded-xl)
+- **Cards**: 8px (rounded-lg)
+- **Badges/Pills**: 16px ou 9999px (rounded-full)
+- **Inputs**: 8px (rounded-lg)
+- **Modals**: 12px (rounded-xl)
+
+### Ombres (Shadows)
+- **Boutons**: 0 2px 8px rgba(0,0,0,0.12) au repos, 0 4px 12px rgba(0,0,0,0.18) au hover
+- **Cards**: 0 1px 4px rgba(0,0,0,0.08)
+- **Modals**: 0 8px 24px rgba(0,0,0,0.15)
+- **Notifications**: 0 4px 12px rgba(0,0,0,0.15)
+
+### Icônes
+- **Style**: Lucide React (cohérent dans toute l'app)
+- **Taille**: 20px pour boutons, 24px pour navigation
+- **Couleur**: Blanc sur fonds colorés, Vert Principal sur fonds clairs
+- Exemples:
+  - PRENDRE: ShoppingCart ou Plus
+  - DÉPOSER: Package ou Upload
+  - STOCK: Database ou List
+  - RENDRE: ArrowLeft ou Undo
 
 ## Page-Specific Layouts
 
 ### Home Page
-- User selector at very top
-- Quick stats cards (2x2 grid): Total emprunts, Produits faibles, Alertes, etc.
-- "Mes emprunts en cours" list with duration badges
-- Bottom navigation
+- Header: Fond Vert Principal (#2E7D32) avec "FiltrePlante" en blanc
+- User selector intégré dans le header
+- Badge panier/session en Vert Vif, top-right
+- Grid 2x2 des boutons d'action principaux
+- Section "Mes emprunts en cours" avec badges de durée
+- Badge global "Valider ma liste (X items)" en bas (fond Vert Vif, fixe)
 
 ### PRENDRE Page
-- Search bar (sticky)
+- Header standard (Vert Principal)
+- Search bar sticky
 - Breadcrumb navigation
-- Category/Product grid or list
-- Stock counter always visible
-- Floating action button for validation
+- Product grid/list avec indicateurs de stock colorés
+- Floating action button (Vert Vif) pour validation
 
-### RENDRE Page
-- List of borrowed items
-- Each item shows: Name, duration, quantity borrowed
-- Inline quantity selector for partial returns
-- Batch return option at bottom
+### DÉPOSER Page (3 tabs)
+- Tab "Mes emprunts": Liste avec badges bleu
+- Tab "Tous les emprunts": Vue admin avec filtres
+- Tab "Ajouter du stock": Formulaire avec bouton Bleu Eau
+- Background sections: Vert Clair (#E8F5E8) pour zones admin
 
 ### STOCK Page
-- Filter chips at top (OK, Faible, Vide, Tous)
-- Grouped by category (collapsible sections)
-- Stock levels color-coded throughout
-- Pull-to-refresh gesture
+- Filter chips: Actif en Vert Vif, inactifs en outline
+- Grouped by category (collapsible)
+- Stock levels color-coded (Vert/Orange/Rouge)
+- Background: Blanc avec sections Vert Clair pour catégories
 
-### DÉPOSER Page
-- Product search first
-- If not found: Quick "Créer nouveau produit" CTA
-- Form with auto-complete for categories
-- Immediate feedback: "Produit ajouté (en attente de validation)"
+### Admin Validation
+- Background global: Vert Clair (#E8F5E8)
+- Cards produits en attente: Fond blanc, border Orange
+- Password input: Standard avec icône
+- Action buttons: Vert Vif (valider), Rouge Urgent (supprimer)
 
-## Images
-No hero images required - this is a utility application focused on data and actions. Use:
-- **Icons**: Material Icons via CDN for categories and actions
-- **Status indicators**: Colored dots/badges (CSS-based, not images)
-- **Empty states**: Simple illustrations (optional) for "Aucun emprunt" etc.
-
-## Animations
-Minimal and functional only:
-- Page transitions: Simple slide (200ms)
-- Button press: Scale down to 0.95 (100ms)
-- Toast notifications: Slide in from top (250ms)
-- Loading states: Spinner only when necessary
+## 📱 Responsive Mobile
+- Touch targets: minimum 48px (recommandé 56px pour confort)
+- Grid adaptatif: 2 colonnes sur mobile, 3-4 sur tablet
+- Spacing généreux: minimum 16px entre éléments interactifs
+- Bottom sheet modals pour actions contextuelles
+- Swipe gestures pour navigation (optionnel)
 
 ## Accessibility
-- All interactive elements: min 48px touch target
-- Color not sole indicator (use icons + text)
-- High contrast ratios (WCAG AA minimum)
-- Form labels always visible
-- Error messages clear and actionable
+- Contraste minimum WCAG AA: 4.5:1 pour texte normal, 3:1 pour texte large
+- Tous les boutons ont des labels explicites
+- Icônes accompagnées de texte
+- États focus visibles (ring Vert Principal)
+- Pas de couleur seule comme indicateur (icône + couleur)
+
+## Animations
+Minimal et fonctionnel:
+- Page transitions: Slide 200ms
+- Button press: Scale 0.98, 100ms
+- Toast: Slide in from top 250ms
+- Loading: Spinner Vert Vif uniquement quand nécessaire
+- Hover elevation: transition 150ms ease
