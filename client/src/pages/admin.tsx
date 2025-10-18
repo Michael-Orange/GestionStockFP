@@ -125,7 +125,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-[hsl(var(--vert-clair))] pb-24">
       <AppHeader showBack={true} backPath="/" title="Admin" />
 
       <div className="px-4 py-6 space-y-6">
@@ -143,10 +143,10 @@ export default function Admin() {
         </Button>
 
         {/* Stats */}
-        <Card>
+        <Card className="bg-white">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-8 w-8 text-[hsl(25,95%,53%)]" />
+              <AlertTriangle className="h-8 w-8 text-[hsl(var(--orange-alerte))]" />
               <div>
                 <div className="text-2xl font-bold" data-testid="text-pending-count">
                   {pendingProducts.length}
@@ -184,7 +184,7 @@ export default function Admin() {
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="font-semibold">{product.nom}</h3>
                           <Badge 
-                            className="bg-[hsl(217,91%,60%)] text-white"
+                            className="bg-[hsl(var(--orange-alerte))] text-white"
                             data-testid={`badge-status-${product.id}`}
                           >
                             En attente
@@ -202,27 +202,25 @@ export default function Admin() {
                     {/* Actions */}
                     <div className="grid grid-cols-3 gap-2">
                       <Button
-                        variant="default"
                         size="sm"
                         onClick={() => validateMutation.mutate(product.id)}
                         disabled={validateMutation.isPending}
-                        className="bg-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,35%)]"
+                        className="bg-[hsl(var(--vert-vif))] hover:bg-[hsl(var(--vert-vif))]/90 text-white border-0"
                         data-testid={`button-validate-${product.id}`}
                       >
                         <Check className="mr-1 h-4 w-4" />
                         Valider
                       </Button>
                       <Button
-                        variant="outline"
                         size="sm"
                         onClick={() => handleEdit(product)}
+                        className="bg-[hsl(var(--bleu-eau))] hover:bg-[hsl(var(--bleu-eau))]/90 text-white border-0"
                         data-testid={`button-edit-${product.id}`}
                       >
                         <Edit className="mr-1 h-4 w-4" />
                         Modifier
                       </Button>
                       <Button
-                        variant="destructive"
                         size="sm"
                         onClick={() => {
                           if (confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
@@ -230,6 +228,7 @@ export default function Admin() {
                           }
                         }}
                         disabled={deleteMutation.isPending}
+                        className="bg-[hsl(var(--rouge-urgent))] hover:bg-[hsl(var(--rouge-urgent))]/90 text-white border-0"
                         data-testid={`button-delete-${product.id}`}
                       >
                         <X className="mr-1 h-4 w-4" />
