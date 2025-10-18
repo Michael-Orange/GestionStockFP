@@ -26,20 +26,20 @@ export function AppHeader({ showBack = false, backPath = "/", title }: AppHeader
   const showBadge = location !== "/panier";
 
   return (
-    <header className="bg-card border-b sticky top-0 z-10">
+    <header className="bg-[hsl(var(--vert-principal))] text-white sticky top-0 z-10 shadow-md">
       <div className="px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {showBack && (
               <Link href={backPath}>
-                <Button variant="ghost" size="icon" data-testid="button-back">
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" data-testid="button-back">
                   <ChevronLeft className="h-6 w-6" />
                 </Button>
               </Link>
             )}
             <div>
-              <h1 className="text-xl font-semibold">{title || "FiltrePlante"}</h1>
-              {!title && <p className="text-sm text-muted-foreground">Gestion de Stock</p>}
+              <h1 className="text-xl font-semibold text-white">{title || "FiltrePlante"}</h1>
+              {!title && <p className="text-sm text-white/80">Gestion de Stock</p>}
             </div>
           </div>
           
@@ -47,9 +47,9 @@ export function AppHeader({ showBack = false, backPath = "/", title }: AppHeader
           {showBadge && (
             <Link href="/panier">
               <div className="relative" data-testid="link-liste-header">
-                <ShoppingCart className="h-6 w-6 text-primary" data-testid="icon-liste-header" />
+                <ShoppingCart className="h-6 w-6 text-white" data-testid="icon-liste-header" />
                 {listeCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center" data-testid="badge-liste-count-header">
+                  <span className="absolute -top-1 -right-1 bg-[hsl(var(--vert-vif))] text-white text-xs font-medium rounded-full h-5 w-5 flex items-center justify-center shadow-sm" data-testid="badge-liste-count-header">
                     {listeCount}
                   </span>
                 )}
