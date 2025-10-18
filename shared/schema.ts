@@ -50,6 +50,7 @@ export const movements = pgTable("movements", {
   statut: text("statut").notNull().default("en_cours"), // "en_cours" | "termine"
   dateRetourPrevu: timestamp("date_retour_prevu"), // pour les prêts uniquement
   dateRetourEffectif: timestamp("date_retour_effectif"),
+  quantitePerdue: integer("quantite_perdue").default(0), // pour type="retour", quantité perdue lors du retour
 });
 
 export const insertMovementSchema = createInsertSchema(movements).omit({ 
@@ -107,6 +108,7 @@ export const listeItems = pgTable("liste_items", {
   movementId: integer("movement_id"), // nullable, utilisé pour typeAction="rendre"
   
   quantite: integer("quantite").notNull(),
+  quantitePerdue: integer("quantite_perdue").default(0), // pour typeAction="rendre", quantité perdue
 });
 
 export const insertListeItemSchema = createInsertSchema(listeItems).omit({ 
