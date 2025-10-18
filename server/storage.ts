@@ -216,7 +216,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Get all items with joined product/movement data
-    const items = await db
+    const rawItems = await db
       .select({
         id: listeItems.id,
         listeId: listeItems.listeId,
@@ -225,6 +225,7 @@ export class DatabaseStorage implements IStorage {
         typeMouvement: listeItems.typeMouvement,
         movementId: listeItems.movementId,
         quantite: listeItems.quantite,
+        quantitePerdue: listeItems.quantitePerdue,
         product: products,
         movement: movements,
       })
@@ -232,6 +233,18 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(products, eq(listeItems.produitId, products.id))
       .leftJoin(movements, eq(listeItems.movementId, movements.id))
       .where(eq(listeItems.listeId, liste.id));
+
+    // For items where product is null but movement exists, fetch product via movement.produitId
+    const items = await Promise.all(
+      rawItems.map(async (item) => {
+        if (!item.product && item.movement?.produitId) {
+          // Fetch product via movement
+          const product = await this.getProduct(item.movement.produitId);
+          return { ...item, product: product || null };
+        }
+        return item;
+      })
+    );
 
     return { liste, items: items as (ListeItem & { product: Product | null; movement: Movement | null })[] };
   }
