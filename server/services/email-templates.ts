@@ -128,27 +128,51 @@ export function createValidationPanierEmail(data: ValidationPanierData): string 
   
   let sectionsHtml = '';
   
-  // Section PRENDRE
+  // Section EMPRUNTÉ (type pret)
   if (items.prendre && items.prendre.length > 0) {
-    const itemsHtml = items.prendre.map(item => `
-      <div class="item">
-        <div class="item-name">
-          ${item.nom}
-          <span class="badge ${item.type === 'pret' ? 'badge-blue' : 'badge-green'}">${item.type.toUpperCase()}</span>
+    const itemsPret = items.prendre.filter(item => item.type === 'pret');
+    if (itemsPret.length > 0) {
+      const itemsHtml = itemsPret.map(item => `
+        <div class="item">
+          <div class="item-name">
+            ${item.nom}
+            <span class="badge badge-blue">PRÊT</span>
+          </div>
+          <div class="item-details">${item.quantite} ${item.unite}</div>
         </div>
-        <div class="item-details">${item.quantite} ${item.unite}</div>
-      </div>
-    `).join('');
+      `).join('');
+      
+      sectionsHtml += `
+        <div class="section">
+          <div class="section-title">📦 EMPRUNTÉ DU STOCK (${itemsPret.length})</div>
+          ${itemsHtml}
+        </div>
+      `;
+    }
     
-    sectionsHtml += `
-      <div class="section">
-        <div class="section-title">📦 À PRENDRE (${items.prendre.length})</div>
-        ${itemsHtml}
-      </div>
-    `;
+    // Section PRÉLEVÉ (type consommation)
+    const itemsConsommation = items.prendre.filter(item => item.type === 'consommation');
+    if (itemsConsommation.length > 0) {
+      const itemsHtml = itemsConsommation.map(item => `
+        <div class="item">
+          <div class="item-name">
+            ${item.nom}
+            <span class="badge badge-green">CONSOMMATION</span>
+          </div>
+          <div class="item-details">${item.quantite} ${item.unite}</div>
+        </div>
+      `).join('');
+      
+      sectionsHtml += `
+        <div class="section">
+          <div class="section-title">📦 PRÉLEVÉ DU STOCK (${itemsConsommation.length})</div>
+          ${itemsHtml}
+        </div>
+      `;
+    }
   }
   
-  // Section RENDRE
+  // Section REMIS EN STOCK
   if (items.rendre && items.rendre.length > 0) {
     const itemsHtml = items.rendre.map(item => `
       <div class="item">
@@ -159,13 +183,13 @@ export function createValidationPanierEmail(data: ValidationPanierData): string 
     
     sectionsHtml += `
       <div class="section">
-        <div class="section-title">🔄 À RENDRE (${items.rendre.length})</div>
+        <div class="section-title">🔄 REMIS EN STOCK ✅ (${items.rendre.length})</div>
         ${itemsHtml}
       </div>
     `;
   }
   
-  // Section DÉPOSER
+  // Section DÉPOSÉ EN STOCK
   if (items.deposer && items.deposer.length > 0) {
     const itemsHtml = items.deposer.map(item => `
       <div class="item">
@@ -176,7 +200,7 @@ export function createValidationPanierEmail(data: ValidationPanierData): string 
     
     sectionsHtml += `
       <div class="section">
-        <div class="section-title">📥 À DÉPOSER (${items.deposer.length})</div>
+        <div class="section-title">📥 DÉPOSÉ EN STOCK ✅ (${items.deposer.length})</div>
         ${itemsHtml}
       </div>
     `;
