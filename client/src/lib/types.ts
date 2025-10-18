@@ -8,6 +8,7 @@ export interface ProductWithStock extends Product {
 
 export interface ActiveLoan extends Movement {
   product: Product;
+  user?: User;
   dureeJours: number;
   statusDuree: "recent" | "attention" | "retard";
 }

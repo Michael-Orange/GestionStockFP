@@ -155,25 +155,21 @@ export default function Home() {
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          <Link href="/prendre">
-            <Button className="w-full h-24 flex-col gap-2" size="lg" data-testid="button-prendre">
-              <ArrowDownToLine className="h-6 w-6" />
-              <span className="text-base font-medium">PRENDRE</span>
-            </Button>
-          </Link>
-          <Link href="/rendre">
-            <Button className="w-full h-24 flex-col gap-2" size="lg" variant="outline" data-testid="button-rendre">
-              <ArrowUpFromLine className="h-6 w-6" />
-              <span className="text-base font-medium">RENDRE</span>
-            </Button>
-          </Link>
-          <Link href="/deposer">
-            <Button className="w-full h-24 flex-col gap-2" size="lg" variant="outline" data-testid="button-deposer">
-              <Package className="h-6 w-6" />
-              <span className="text-base font-medium">DÉPOSER</span>
-            </Button>
-          </Link>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Link href="/prendre">
+              <Button className="w-full h-24 flex-col gap-2" size="lg" data-testid="button-prendre">
+                <ArrowDownToLine className="h-6 w-6" />
+                <span className="text-base font-medium">PRENDRE</span>
+              </Button>
+            </Link>
+            <Link href="/deposer">
+              <Button className="w-full h-24 flex-col gap-2" size="lg" variant="outline" data-testid="button-deposer">
+                <Package className="h-6 w-6" />
+                <span className="text-base font-medium">DÉPOSER</span>
+              </Button>
+            </Link>
+          </div>
           <Link href="/stock">
             <Button className="w-full h-24 flex-col gap-2" size="lg" variant="outline" data-testid="button-stock">
               <ClipboardList className="h-6 w-6" />

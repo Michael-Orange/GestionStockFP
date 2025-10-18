@@ -246,6 +246,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== MOVEMENTS ==========
 
+  // GET /api/movements/active - Get ALL active loans (all users)
+  app.get("/api/movements/active", async (req, res) => {
+    try {
+      const allMovements = await storage.getAllMovements();
+      const activeMovements = allMovements.filter((m) => m.statut === "en_cours" && m.type === "pret");
+      
+      // Enrich with product info, user info, and duration
+      const enrichedLoans = await Promise.all(
+        activeMovements.map(async (movement) => {
+          const product = await storage.getProduct(movement.produitId);
+          const user = await storage.getUser(movement.utilisateurId);
+          const now = new Date();
+          const loanDate = new Date(movement.date);
+          const dureeJours = Math.floor((now.getTime() - loanDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          let statusDuree: "recent" | "attention" | "retard";
+          if (dureeJours < 7) {
+            statusDuree = "recent";
+          } else if (dureeJours < 15) {
+            statusDuree = "attention";
+          } else {
+            statusDuree = "retard";
+          }
+
+          return {
+            ...movement,
+            product,
+            user,
+            dureeJours,
+            statusDuree,
+          };
+        })
+      );
+
+      res.json(enrichedLoans);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/movements/active/:userId - Get active loans for a user
   app.get("/api/movements/active/:userId", async (req, res) => {
     try {

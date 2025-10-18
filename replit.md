@@ -14,7 +14,11 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - ✅ Frontend avec toutes les pages fonctionnelles
 - ✅ Import CSV automatique au démarrage
 - ✅ Système de validation admin opérationnel
-- ✅ **Système de panier pour actions groupées** (NOUVEAU)
+- ✅ **Authentification admin par mot de passe (bcrypt)** (NOUVEAU)
+- ✅ **Système de liste pour actions groupées** (renommage panier → liste) (NOUVEAU)
+- ✅ **Modale de confirmation avant navigation** (NOUVEAU)
+- ✅ **Page DÉPOSER unifiée** (fusion RENDRE + DÉPOSER avec 3 onglets) (NOUVEAU)
+- ✅ **Création produit depuis PRENDRE et DÉPOSER** (NOUVEAU)
 - ✅ Tests end-to-end réussis
 - ✅ Design mobile-first avec accessibilité tactile (48px minimum)
 - ✅ Bug critique corrigé: filtrage produits en_attente
@@ -23,6 +27,7 @@ L'application est entièrement implémentée, testée et opérationnelle:
 
 ### Base de données PostgreSQL (Drizzle ORM)
 - **users**: 5 utilisateurs (Marine, Fatou, Michael [admin], Cheikh, Papa)
+  - Nouveau: passwordHash (bcrypt) pour Marine et Michael (mot de passe: "Fplante@Stock1!")
 - **products**: 305 produits importés depuis CSV
   - Champs: catégorie, sous-section, nom, unité, stockActuel, stockMinimum, statut (valide/en_attente)
 - **movements**: Mouvements de stock
@@ -30,6 +35,10 @@ L'application est entièrement implémentée, testée et opérationnelle:
   - Statut: en_cours, termine
 - **alerts**: Alertes et notifications
   - Types: retard_emprunt, nouveau_produit, stock_faible
+- **listes**: Listes d'actions en attente (renommé de "paniers")
+  - Champs: utilisateurId, dateModification
+- **liste_items**: Items dans les listes
+  - Champs: listeId, produitId, quantite, type (pret/consommation), empruntId (pour retours)
 
 ### Frontend (React + TypeScript)
 - Stack: Vite, React, Wouter, TanStack Query, Shadcn UI, Tailwind CSS
@@ -37,13 +46,16 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - Thème: Inter font, indicateurs colorés (Vert/Orange/Rouge)
 
 ### Pages principales
-1. **Home** (`/`): Sélection utilisateur, stats rapides, liste emprunts en cours, boutons d'action, badge panier
-2. **Prendre** (`/prendre`): Navigation Catégorie → Sous-section → Produit avec boutons "Ajouter au panier" et "Valider maintenant"
-3. **Rendre** (`/rendre`): Liste emprunts avec durée écoulée, boutons "Ajouter au panier" et "Valider maintenant"
-4. **Panier** (`/panier`): Vue groupée des actions (PRENDRE/RENDRE), retrait d'items, vidage et validation groupée (NOUVEAU)
-5. **Déposer** (`/deposer`): Ajout stock existant ou création nouveau produit (statut en_attente)
-6. **Stock** (`/stock`): Vue par catégorie avec filtres (OK/Faible/Vide) et accordéons
-7. **Admin** (`/admin`): Validation produits en attente (Michael uniquement)
+1. **Home** (`/`): Sélection utilisateur, stats rapides, liste emprunts en cours, 3 boutons d'action (PRENDRE, DÉPOSER, STOCK), badge liste
+2. **Prendre** (`/prendre`): Navigation Catégorie → Sous-section → Produit avec bouton "Ajouter à ma liste" + formulaire création produit
+3. **Déposer** (`/deposer`): Page unifiée avec 3 onglets:
+   - **Mes emprunts**: Liste emprunts utilisateur actuel avec durée écoulée et retour
+   - **Tous les emprunts**: Liste TOUS les emprunts (tous utilisateurs) avec nom emprunteur et retour
+   - **Ajouter du stock**: Arborescence Catégorie → Sous-section → Produit (incluant stock=0) + formulaire création produit
+4. **Ma liste** (`/panier`): Vue groupée des actions (PRENDRE/RENDRE), retrait d'items, vidage et validation groupée
+5. **Stock** (`/stock`): Vue par catégorie avec filtres (OK/Faible/Vide) et accordéons
+6. **Admin** (`/admin`): Validation produits en attente (Michael uniquement, protégé par mot de passe)
+7. **Redirection**: `/rendre` → redirige automatiquement vers `/deposer`
 
 ## Fonctionnalités Implémentées ✅
 
@@ -51,6 +63,10 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - Sélection utilisateur sans mot de passe (localStorage)
 - Context React pour utilisateur actuel
 - Interface admin conditionnelle (role=admin)
+- **Authentification admin par mot de passe**: Marine et Michael doivent entrer "Fplante@Stock1!" pour accéder à /admin
+  - Hachage bcrypt côté serveur
+  - Modale de saisie avec validation
+  - Endpoint POST /api/auth/verify-password
 
 ### Gestion Stock
 - Calcul stock temps réel (stockActuel - emprunts en cours)
@@ -72,24 +88,54 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - Retour partiel ou total
 
 ### Validation Admin
+- **Authentification par mot de passe**: Marine et Michael doivent s'authentifier pour accéder à /admin
 - Création nouveaux produits (statut en_attente)
-- Validation par Michael avant utilisation
+- Validation par Michael ou Marine avant utilisation
 - Filtrage sécurisé: produits non validés invisibles dans PRENDRE/DÉPOSER
 - Validation défensive côté serveur (empêche emprunts de produits non validés)
 
-### Système de Panier (Actions Groupées) ✅ NOUVEAU
+### Création de Produits ✅ NOUVEAU
+- **Composant réutilisable**: CreateProductForm avec dropdowns dynamiques
+- **Disponible depuis**: Page PRENDRE et onglet "Ajouter du stock" de DÉPOSER
+- **Fonctionnalités**:
+  - Dropdown catégories avec chargement des sous-sections dynamique
+  - Option "Nouvelle sous-section" pour créer nouvelle sous-section
+  - Validation défensive (empêche soumission catégories/sous-sections vides)
+  - Création en statut "en_attente" → validation admin requise
+- **Endpoint**: GET /api/categories/:categorie/sous-sections
+
+### Page DÉPOSER Unifiée ✅ NOUVEAU
+**Fusion RENDRE + DÉPOSER en une seule page avec onglets**
+- **Onglet 1 - Mes emprunts**: Workflow RENDRE pour utilisateur actuel uniquement
+  - Liste emprunts en cours avec badges durée (vert/orange/rouge)
+  - Bouton retour avec quantité
+- **Onglet 2 - Tous les emprunts**: Workflow RENDRE pour TOUS les utilisateurs
+  - Affiche nom de l'emprunteur (enrichissement côté serveur)
+  - Permet à n'importe qui de retourner n'importe quel emprunt
+  - Endpoint: GET /api/movements/active (retourne tous emprunts avec user)
+- **Onglet 3 - Ajouter du stock**: Workflow DÉPOSER classique
+  - Arborescence Catégorie → Sous-section → Produit
+  - **Inclut produits avec stock=0** (changement important!)
+  - Bouton "Créer nouveau produit"
+  - Breadcrumb navigation et boutons retour
+
+### Système de Liste (Actions Groupées) ✅ NOUVEAU
+**Renommage complet: panier → liste**
 - **Badge compteur** dans navigation principale (icône ShoppingCart)
-- **Ajout au panier** depuis PRENDRE et RENDRE workflows
-- **Boutons dual-action**: "Ajouter au panier" (outline) + "Valider maintenant" (primary)
-- **Page panier** avec affichage groupé:
+- **Ajout à la liste** depuis PRENDRE et workflows DÉPOSER (onglets Mes/Tous emprunts)
+- **Page Ma liste** (`/panier`) avec affichage groupé:
   - Section "À PRENDRE" avec produits et types (prêt/consommation)
   - Section "À RENDRE" avec emprunts et quantités
-- **Actions panier**:
+- **Actions liste**:
   - Retirer item individuel
-  - Vider tout le panier
+  - Vider toute la liste
   - Valider ensemble (crée tous mouvements en une fois)
 - **UX optimisée**: reset automatique après ajout pour continuer parcours
-- **Invalidation cache**: queries panier, mouvements, produits invalidées après chaque action
+- **Modale de confirmation**: Si liste non vide et navigation, propose 3 choix:
+  - Continuer sans valider
+  - Valider la liste maintenant
+  - Vider la liste
+- **Invalidation cache**: queries liste, mouvements, produits invalidées après chaque action
 
 ### Import de Données
 - Import CSV automatique au démarrage (305 produits)
@@ -109,10 +155,25 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - `POST /api/import-csv` - Importer CSV produits
 
 ### Mouvements
+- `GET /api/movements/active` - TOUS les emprunts en cours (tous utilisateurs) avec enrichissement user (NOUVEAU)
 - `GET /api/movements/active/:userId` - Emprunts en cours utilisateur
 - `POST /api/movements/borrow` - Emprunter produit (avec validation statut)
 - `POST /api/movements/return` - Retourner produit
 - `POST /api/movements/deposit` - Déposer stock (avec validation statut)
+
+### Listes (Actions Groupées)
+- `GET /api/liste/:userId` - Récupérer liste utilisateur
+- `POST /api/liste/:userId/add-borrow` - Ajouter produit à emprunter à la liste
+- `POST /api/liste/:userId/add-return` - Ajouter retour à la liste
+- `POST /api/liste/:userId/remove/:itemId` - Retirer item de la liste
+- `DELETE /api/liste/:userId` - Vider toute la liste
+- `POST /api/liste/:userId/validate` - Valider tous les items (crée mouvements)
+
+### Auth Admin
+- `POST /api/auth/verify-password` - Vérifier mot de passe admin (body: {userId, password})
+
+### Catégories
+- `GET /api/categories/:categorie/sous-sections` - Récupérer sous-sections d'une catégorie (NOUVEAU)
 
 ### Utilisateurs & Alertes
 - `GET /api/users` - Liste utilisateurs
