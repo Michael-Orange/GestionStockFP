@@ -29,6 +29,7 @@ export default function Deposer() {
   // Tab 1 & 2: Rendre workflow
   const [selectedLoan, setSelectedLoan] = useState<ActiveLoan | null>(null);
   const [returnQuantite, setReturnQuantite] = useState(1);
+  const [lostQuantite, setLostQuantite] = useState(0);
 
   // Tab 3: Déposer workflow
   const [viewMode, setViewMode] = useState<ViewMode>("categories");
@@ -62,24 +63,30 @@ export default function Deposer() {
 
   // Mutations
   const addReturnToListeMutation = useMutation({
-    mutationFn: async (data: { movementId: number; quantite: number }) => {
+    mutationFn: async (data: { movementId: number; quantite: number; quantitePerdue: number }) => {
       return apiRequest("POST", "/api/liste/add", {
         userId: currentUserId,
         item: {
           typeAction: "rendre",
           movementId: data.movementId,
           quantite: data.quantite,
+          quantitePerdue: data.quantitePerdue,
         },
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
+      const totalItems = returnQuantite + lostQuantite;
+      const description = lostQuantite > 0 
+        ? `${selectedLoan?.product.nom}: ${returnQuantite} ${selectedLoan?.product.unite} à rendre, ${lostQuantite} perdu(s)`
+        : `${selectedLoan?.product.nom} × ${returnQuantite} ${selectedLoan?.product.unite} à rendre`;
       toast({
         title: "Ajouté à la liste",
-        description: `${selectedLoan?.product.nom} × ${returnQuantite} ${selectedLoan?.product.unite} à rendre`,
+        description,
       });
       setSelectedLoan(null);
       setReturnQuantite(1);
+      setLostQuantite(0);
     },
     onError: (error: any) => {
       toast({
@@ -125,6 +132,7 @@ export default function Deposer() {
     addReturnToListeMutation.mutate({
       movementId: selectedLoan.id,
       quantite: returnQuantite,
+      quantitePerdue: lostQuantite,
     });
   };
 
@@ -155,6 +163,7 @@ export default function Deposer() {
       if (selectedLoan) {
         setSelectedLoan(null);
         setReturnQuantite(1);
+        setLostQuantite(0);
       } else {
         setLocation("/");
       }
@@ -243,8 +252,8 @@ export default function Deposer() {
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => setReturnQuantite(Math.max(1, returnQuantite - 1))}
-                          disabled={returnQuantite <= 1}
+                          onClick={() => setReturnQuantite(Math.max(0, returnQuantite - 1))}
+                          disabled={returnQuantite <= 0}
                           data-testid="button-decrease-quantity"
                         >
                           <Minus className="h-4 w-4" />
@@ -252,26 +261,68 @@ export default function Deposer() {
                         <Input
                           id="quantite-return"
                           type="number"
-                          min="1"
-                          max={selectedLoan.quantite}
+                          min="0"
+                          max={selectedLoan.quantite - lostQuantite}
                           value={returnQuantite}
-                          onChange={(e) => setReturnQuantite(Math.max(1, Math.min(selectedLoan.quantite, parseInt(e.target.value) || 1)))}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setReturnQuantite(Math.max(0, Math.min(selectedLoan.quantite - lostQuantite, val)));
+                          }}
                           className="text-center font-bold text-lg w-24"
                           data-testid="input-quantity"
                         />
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => setReturnQuantite(Math.min(selectedLoan.quantite, returnQuantite + 1))}
-                          disabled={returnQuantite >= selectedLoan.quantite}
+                          onClick={() => setReturnQuantite(Math.min(selectedLoan.quantite - lostQuantite, returnQuantite + 1))}
+                          disabled={returnQuantite >= (selectedLoan.quantite - lostQuantite)}
                           data-testid="button-increase-quantity"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
-                      {returnQuantite < selectedLoan.quantite && (
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="quantite-perdue" className="text-destructive">Quantités perdues</Label>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setLostQuantite(Math.max(0, lostQuantite - 1))}
+                          disabled={lostQuantite <= 0}
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          data-testid="button-decrease-lost-quantity"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Input
+                          id="quantite-perdue"
+                          type="number"
+                          min="0"
+                          max={selectedLoan.quantite - returnQuantite}
+                          value={lostQuantite}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setLostQuantite(Math.max(0, Math.min(selectedLoan.quantite - returnQuantite, val)));
+                          }}
+                          className="text-center font-bold text-lg w-24 border-destructive text-destructive focus-visible:ring-destructive"
+                          data-testid="input-lost-quantity"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setLostQuantite(Math.min(selectedLoan.quantite - returnQuantite, lostQuantite + 1))}
+                          disabled={lostQuantite >= (selectedLoan.quantite - returnQuantite)}
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          data-testid="button-increase-lost-quantity"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {(returnQuantite + lostQuantite) < selectedLoan.quantite && (
                         <p className="text-sm text-muted-foreground">
-                          Retour partiel. Reste: {selectedLoan.quantite - returnQuantite} {selectedLoan.product.unite}
+                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {selectedLoan.product.unite}
                         </p>
                       )}
                     </div>
@@ -282,7 +333,7 @@ export default function Deposer() {
                   className="w-full"
                   size="lg"
                   onClick={handleReturn}
-                  disabled={addReturnToListeMutation.isPending || returnQuantite < 1 || returnQuantite > selectedLoan.quantite}
+                  disabled={addReturnToListeMutation.isPending || (returnQuantite + lostQuantite) <= 0 || (returnQuantite + lostQuantite) > selectedLoan.quantite}
                   data-testid="button-add-return-to-list"
                 >
                   {addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
@@ -312,6 +363,7 @@ export default function Deposer() {
                         onClick={() => {
                           setSelectedLoan(loan);
                           setReturnQuantite(loan.quantite);
+                          setLostQuantite(0);
                         }}
                         data-testid={`card-loan-${loan.id}`}
                       >
@@ -370,8 +422,8 @@ export default function Deposer() {
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => setReturnQuantite(Math.max(1, returnQuantite - 1))}
-                          disabled={returnQuantite <= 1}
+                          onClick={() => setReturnQuantite(Math.max(0, returnQuantite - 1))}
+                          disabled={returnQuantite <= 0}
                           data-testid="button-decrease-quantity"
                         >
                           <Minus className="h-4 w-4" />
@@ -379,26 +431,68 @@ export default function Deposer() {
                         <Input
                           id="quantite-return-all"
                           type="number"
-                          min="1"
-                          max={selectedLoan.quantite}
+                          min="0"
+                          max={selectedLoan.quantite - lostQuantite}
                           value={returnQuantite}
-                          onChange={(e) => setReturnQuantite(Math.max(1, Math.min(selectedLoan.quantite, parseInt(e.target.value) || 1)))}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setReturnQuantite(Math.max(0, Math.min(selectedLoan.quantite - lostQuantite, val)));
+                          }}
                           className="text-center font-bold text-lg w-24"
                           data-testid="input-quantity"
                         />
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => setReturnQuantite(Math.min(selectedLoan.quantite, returnQuantite + 1))}
-                          disabled={returnQuantite >= selectedLoan.quantite}
+                          onClick={() => setReturnQuantite(Math.min(selectedLoan.quantite - lostQuantite, returnQuantite + 1))}
+                          disabled={returnQuantite >= (selectedLoan.quantite - lostQuantite)}
                           data-testid="button-increase-quantity"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
-                      {returnQuantite < selectedLoan.quantite && (
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="quantite-perdue-all" className="text-destructive">Quantités perdues</Label>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setLostQuantite(Math.max(0, lostQuantite - 1))}
+                          disabled={lostQuantite <= 0}
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          data-testid="button-decrease-lost-quantity"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Input
+                          id="quantite-perdue-all"
+                          type="number"
+                          min="0"
+                          max={selectedLoan.quantite - returnQuantite}
+                          value={lostQuantite}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setLostQuantite(Math.max(0, Math.min(selectedLoan.quantite - returnQuantite, val)));
+                          }}
+                          className="text-center font-bold text-lg w-24 border-destructive text-destructive focus-visible:ring-destructive"
+                          data-testid="input-lost-quantity"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setLostQuantite(Math.min(selectedLoan.quantite - returnQuantite, lostQuantite + 1))}
+                          disabled={lostQuantite >= (selectedLoan.quantite - returnQuantite)}
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          data-testid="button-increase-lost-quantity"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {(returnQuantite + lostQuantite) < selectedLoan.quantite && (
                         <p className="text-sm text-muted-foreground">
-                          Retour partiel. Reste: {selectedLoan.quantite - returnQuantite} {selectedLoan.product.unite}
+                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {selectedLoan.product.unite}
                         </p>
                       )}
                     </div>
@@ -409,7 +503,7 @@ export default function Deposer() {
                   className="w-full"
                   size="lg"
                   onClick={handleReturn}
-                  disabled={addReturnToListeMutation.isPending || returnQuantite < 1 || returnQuantite > selectedLoan.quantite}
+                  disabled={addReturnToListeMutation.isPending || (returnQuantite + lostQuantite) <= 0 || (returnQuantite + lostQuantite) > selectedLoan.quantite}
                   data-testid="button-add-return-to-list"
                 >
                   {addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
@@ -439,6 +533,7 @@ export default function Deposer() {
                         onClick={() => {
                           setSelectedLoan(loan);
                           setReturnQuantite(loan.quantite);
+                          setLostQuantite(0);
                         }}
                         data-testid={`card-loan-${loan.id}`}
                       >
