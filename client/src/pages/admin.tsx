@@ -143,7 +143,7 @@ export default function Admin() {
         </Button>
 
         {/* Stats */}
-        <Card className="bg-white">
+        <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-8 w-8 text-[hsl(var(--orange-alerte))]" />
