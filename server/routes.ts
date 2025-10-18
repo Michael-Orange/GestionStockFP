@@ -494,14 +494,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/panier/add - Add item to panier
   app.post("/api/panier/add", async (req, res) => {
     try {
-      const { userId, typeAction, produitId, typeMouvement, movementId, quantite } = req.body;
+      const { userId, item: itemData } = req.body;
       
       const item = await storage.addItemToPanier(userId, {
-        typeAction,
-        produitId: produitId || null,
-        typeMouvement: typeMouvement || null,
-        movementId: movementId || null,
-        quantite,
+        typeAction: itemData.typeAction,
+        produitId: itemData.produitId || null,
+        typeMouvement: itemData.typeEmprunt || null,
+        movementId: itemData.movementId || itemData.mouvementId || null, // Support both spellings
+        quantite: itemData.quantite,
       });
       
       res.json(item);

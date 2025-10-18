@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChevronLeft, Search, Package, Minus, Plus } from "lucide-react";
+import { ChevronLeft, Search, Package, Minus, Plus, ShoppingCart } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -69,6 +69,33 @@ export default function Prendre() {
     },
   });
 
+  // Mutation pour ajouter au panier
+  const addToPanierMutation = useMutation({
+    mutationFn: async (data: { produitId: number; quantite: number; typeAction: string; typeEmprunt: string }) => {
+      return apiRequest("POST", "/api/panier/add", {
+        userId: currentUserId,
+        item: data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });
+      toast({
+        title: "Ajouté au panier",
+        description: `${selectedProduct?.nom} × ${quantite} ${selectedProduct?.unite}`,
+      });
+      // Reset pour continuer à ajouter d'autres produits
+      setSelectedProduct(null);
+      setQuantite(1);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'ajouter au panier",
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredProducts = products.filter((p) => {
     if (searchQuery) {
       return p.nom.toLowerCase().includes(searchQuery.toLowerCase());
@@ -104,6 +131,17 @@ export default function Prendre() {
       produitId: selectedProduct.id,
       quantite,
       type: typeEmprunt,
+    });
+  };
+
+  const handleAddToPanier = () => {
+    if (!selectedProduct) return;
+    
+    addToPanierMutation.mutate({
+      produitId: selectedProduct.id,
+      quantite,
+      typeAction: "prendre",
+      typeEmprunt,
     });
   };
 
@@ -252,15 +290,30 @@ export default function Prendre() {
               </CardContent>
             </Card>
 
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleValidate}
-              disabled={borrowMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
-              data-testid="button-validate-borrow"
-            >
-              {borrowMutation.isPending ? "Enregistrement..." : "VALIDER"}
-            </Button>
+            {/* Boutons d'action */}
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="outline"
+                className="w-full"
+                size="lg"
+                onClick={handleAddToPanier}
+                disabled={addToPanierMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
+                data-testid="button-add-to-cart"
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                {addToPanierMutation.isPending ? "Ajout..." : "AJOUTER AU PANIER"}
+              </Button>
+              
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleValidate}
+                disabled={borrowMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
+                data-testid="button-validate-borrow"
+              >
+                {borrowMutation.isPending ? "Enregistrement..." : "VALIDER MAINTENANT"}
+              </Button>
+            </div>
           </div>
         ) : searchQuery ? (
           /* Résultats de recherche */

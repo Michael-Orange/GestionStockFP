@@ -14,6 +14,7 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - ✅ Frontend avec toutes les pages fonctionnelles
 - ✅ Import CSV automatique au démarrage
 - ✅ Système de validation admin opérationnel
+- ✅ **Système de panier pour actions groupées** (NOUVEAU)
 - ✅ Tests end-to-end réussis
 - ✅ Design mobile-first avec accessibilité tactile (48px minimum)
 - ✅ Bug critique corrigé: filtrage produits en_attente
@@ -36,12 +37,13 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - Thème: Inter font, indicateurs colorés (Vert/Orange/Rouge)
 
 ### Pages principales
-1. **Home** (`/`): Sélection utilisateur, stats rapides, liste emprunts en cours, boutons d'action
-2. **Prendre** (`/prendre`): Navigation Catégorie → Sous-section → Produit avec recherche et validation prêt/consommation
-3. **Rendre** (`/rendre`): Liste emprunts avec durée écoulée, retour partiel ou total
-4. **Déposer** (`/deposer`): Ajout stock existant ou création nouveau produit (statut en_attente)
-5. **Stock** (`/stock`): Vue par catégorie avec filtres (OK/Faible/Vide) et accordéons
-6. **Admin** (`/admin`): Validation produits en attente (Michael uniquement)
+1. **Home** (`/`): Sélection utilisateur, stats rapides, liste emprunts en cours, boutons d'action, badge panier
+2. **Prendre** (`/prendre`): Navigation Catégorie → Sous-section → Produit avec boutons "Ajouter au panier" et "Valider maintenant"
+3. **Rendre** (`/rendre`): Liste emprunts avec durée écoulée, boutons "Ajouter au panier" et "Valider maintenant"
+4. **Panier** (`/panier`): Vue groupée des actions (PRENDRE/RENDRE), retrait d'items, vidage et validation groupée (NOUVEAU)
+5. **Déposer** (`/deposer`): Ajout stock existant ou création nouveau produit (statut en_attente)
+6. **Stock** (`/stock`): Vue par catégorie avec filtres (OK/Faible/Vide) et accordéons
+7. **Admin** (`/admin`): Validation produits en attente (Michael uniquement)
 
 ## Fonctionnalités Implémentées ✅
 
@@ -74,6 +76,20 @@ L'application est entièrement implémentée, testée et opérationnelle:
 - Validation par Michael avant utilisation
 - Filtrage sécurisé: produits non validés invisibles dans PRENDRE/DÉPOSER
 - Validation défensive côté serveur (empêche emprunts de produits non validés)
+
+### Système de Panier (Actions Groupées) ✅ NOUVEAU
+- **Badge compteur** dans navigation principale (icône ShoppingCart)
+- **Ajout au panier** depuis PRENDRE et RENDRE workflows
+- **Boutons dual-action**: "Ajouter au panier" (outline) + "Valider maintenant" (primary)
+- **Page panier** avec affichage groupé:
+  - Section "À PRENDRE" avec produits et types (prêt/consommation)
+  - Section "À RENDRE" avec emprunts et quantités
+- **Actions panier**:
+  - Retirer item individuel
+  - Vider tout le panier
+  - Valider ensemble (crée tous mouvements en une fois)
+- **UX optimisée**: reset automatique après ajout pour continuer parcours
+- **Invalidation cache**: queries panier, mouvements, produits invalidées après chaque action
 
 ### Import de Données
 - Import CSV automatique au démarrage (305 produits)

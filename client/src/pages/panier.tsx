@@ -81,10 +81,8 @@ export default function Panier() {
   // Validate panier mutation
   const validatePanierMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/panier/${currentUserId}/validate`, {
-        method: "POST",
-      });
-      return response;
+      const response = await apiRequest("POST", `/api/panier/${currentUserId}/validate`);
+      return response.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });

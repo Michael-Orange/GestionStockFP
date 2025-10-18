@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Package, Minus, Plus } from "lucide-react";
+import { ChevronLeft, Package, Minus, Plus, ShoppingCart } from "lucide-react";
 import { LoanDurationBadge } from "@/components/loan-duration-badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -53,12 +53,49 @@ export default function Rendre() {
     },
   });
 
+  // Mutation pour ajouter au panier
+  const addToPanierMutation = useMutation({
+    mutationFn: async (data: { mouvementId: number; quantite: number; typeAction: string }) => {
+      return apiRequest("POST", "/api/panier/add", {
+        userId: currentUserId,
+        item: data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });
+      toast({
+        title: "Ajouté au panier",
+        description: `${selectedLoan?.product.nom} × ${quantite} ${selectedLoan?.product.unite}`,
+      });
+      // Reset pour continuer à ajouter d'autres retours
+      setSelectedLoan(null);
+      setQuantite(1);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'ajouter au panier",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleValidate = () => {
     if (!selectedLoan) return;
     
     returnMutation.mutate({
       mouvementId: selectedLoan.id,
       quantite,
+    });
+  };
+
+  const handleAddToPanier = () => {
+    if (!selectedLoan) return;
+    
+    addToPanierMutation.mutate({
+      mouvementId: selectedLoan.id,
+      quantite,
+      typeAction: "rendre",
     });
   };
 
@@ -154,15 +191,30 @@ export default function Rendre() {
               </CardContent>
             </Card>
 
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleValidate}
-              disabled={returnMutation.isPending || quantite < 1 || quantite > selectedLoan.quantite}
-              data-testid="button-validate-return"
-            >
-              {returnMutation.isPending ? "Enregistrement..." : "VALIDER LE RETOUR"}
-            </Button>
+            {/* Boutons d'action */}
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="outline"
+                className="w-full"
+                size="lg"
+                onClick={handleAddToPanier}
+                disabled={addToPanierMutation.isPending || quantite < 1 || quantite > selectedLoan.quantite}
+                data-testid="button-add-to-cart-return"
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                {addToPanierMutation.isPending ? "Ajout..." : "AJOUTER AU PANIER"}
+              </Button>
+              
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleValidate}
+                disabled={returnMutation.isPending || quantite < 1 || quantite > selectedLoan.quantite}
+                data-testid="button-validate-return"
+              >
+                {returnMutation.isPending ? "Enregistrement..." : "VALIDER MAINTENANT"}
+              </Button>
+            </div>
           </div>
         ) : (
           /* Liste des emprunts */
