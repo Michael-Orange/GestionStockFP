@@ -66,7 +66,7 @@ export async function initializeData() {
           trim: true,
           relax_quotes: true,
           relax_column_count: true,
-        });
+        }) as Array<Record<string, string>>;
 
         let imported = 0;
         const seen = new Set<string>();
