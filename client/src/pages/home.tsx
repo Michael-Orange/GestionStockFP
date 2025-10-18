@@ -18,18 +18,18 @@ export default function Home() {
   });
 
   // Récupérer les alertes non lues
-  const { data: unreadAlerts = [] } = useQuery({
+  const { data: unreadAlerts = [] } = useQuery<any[]>({
     queryKey: ["/api/alerts/unread", currentUserId],
     enabled: !!currentUserId,
   });
 
-  // Récupérer le panier
-  const { data: panierData } = useQuery<{ panier: any; items: any[] }>({
-    queryKey: ["/api/panier", currentUserId],
+  // Récupérer la liste
+  const { data: listeData } = useQuery<{ liste: any; items: any[] }>({
+    queryKey: ["/api/liste", currentUserId],
     enabled: !!currentUserId,
   });
   
-  const panierCount = panierData?.items?.length || 0;
+  const listeCount = listeData?.items?.length || 0;
 
   if (!currentUser) {
     return (
@@ -61,13 +61,13 @@ export default function Home() {
               <p className="text-sm text-muted-foreground">Gestion de Stock</p>
             </div>
             <div className="flex items-center gap-4">
-              {/* Panier Badge */}
+              {/* Liste Badge */}
               <Link href="/panier">
-                <div className="relative" data-testid="link-panier">
-                  <ShoppingCart className="h-6 w-6 text-primary" data-testid="icon-panier" />
-                  {panierCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center" data-testid="badge-panier-count">
-                      {panierCount}
+                <div className="relative" data-testid="link-liste">
+                  <ShoppingCart className="h-6 w-6 text-primary" data-testid="icon-liste" />
+                  {listeCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center" data-testid="badge-liste-count">
+                      {listeCount}
                     </span>
                   )}
                 </div>

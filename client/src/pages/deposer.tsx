@@ -6,18 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ChevronLeft, Search, Package, Plus, Minus } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
+import { CreateProductForm } from "@/components/create-product-form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ProductWithStock, CategoryInfo } from "@/lib/types";
+import type { ProductWithStock } from "@/lib/types";
 
 export default function Deposer() {
   const [, setLocation] = useLocation();
@@ -29,13 +23,6 @@ export default function Deposer() {
   const [showNewProductForm, setShowNewProductForm] = useState(false);
   const [quantite, setQuantite] = useState(1);
 
-  // Nouveau produit
-  const [newProductName, setNewProductName] = useState("");
-  const [newProductCategorie, setNewProductCategorie] = useState("");
-  const [newProductSousSection, setNewProductSousSection] = useState("");
-  const [newProductUnite, setNewProductUnite] = useState("u");
-  const [newProductQuantite, setNewProductQuantite] = useState(1);
-
   if (!currentUser) {
     setLocation("/");
     return null;
@@ -44,11 +31,6 @@ export default function Deposer() {
   // Récupérer les produits
   const { data: products = [] } = useQuery<ProductWithStock[]>({
     queryKey: ["/api/products"],
-  });
-
-  // Récupérer les catégories
-  const { data: categories = [] } = useQuery<CategoryInfo[]>({
-    queryKey: ["/api/categories"],
   });
 
   // Mutation pour déposer du stock
@@ -76,33 +58,6 @@ export default function Deposer() {
     },
   });
 
-  // Mutation pour créer un nouveau produit
-  const createProductMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/products", {
-        ...data,
-        creePar: currentUserId,
-        statut: "en_attente",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      toast({
-        title: "Produit créé",
-        description: "En attente de validation par l'administrateur",
-      });
-      setLocation("/");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de créer le produit",
-        variant: "destructive",
-      });
-    },
-  });
-
   const filteredProducts = searchQuery
     ? products.filter((p) => p.nom.toLowerCase().includes(searchQuery.toLowerCase()))
     : [];
@@ -113,19 +68,6 @@ export default function Deposer() {
     depositMutation.mutate({
       produitId: selectedProduct.id,
       quantite,
-    });
-  };
-
-  const handleCreateProduct = () => {
-    if (!newProductName || !newProductCategorie || !newProductSousSection) return;
-    
-    createProductMutation.mutate({
-      nom: newProductName,
-      categorie: newProductCategorie,
-      sousSection: newProductSousSection,
-      unite: newProductUnite,
-      stockActuel: newProductQuantite,
-      stockMinimum: 0,
     });
   };
 
@@ -238,113 +180,15 @@ export default function Deposer() {
           </div>
         ) : showNewProductForm ? (
           /* Formulaire de création de produit */
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Nouveau produit</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nom">Nom du produit *</Label>
-                  <Input
-                    id="nom"
-                    value={newProductName}
-                    onChange={(e) => setNewProductName(e.target.value)}
-                    placeholder="Ex: MARTEAU"
-                    className="min-h-touch"
-                    data-testid="input-product-name"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="categorie">Catégorie *</Label>
-                  <Select value={newProductCategorie} onValueChange={setNewProductCategorie}>
-                    <SelectTrigger className="min-h-touch" data-testid="select-category">
-                      <SelectValue placeholder="Sélectionner une catégorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.categorie} value={cat.categorie}>
-                          {cat.categorie}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="__nouvelle__">Nouvelle catégorie...</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {newProductCategorie === "__nouvelle__" && (
-                    <Input
-                      value={newProductCategorie}
-                      onChange={(e) => setNewProductCategorie(e.target.value)}
-                      placeholder="Nom de la catégorie"
-                      className="min-h-touch"
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="sousSection">Sous-section *</Label>
-                  <Input
-                    id="sousSection"
-                    value={newProductSousSection}
-                    onChange={(e) => setNewProductSousSection(e.target.value)}
-                    placeholder="Ex: Outils manuels"
-                    className="min-h-touch"
-                    data-testid="input-subsection"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="unite">Unité *</Label>
-                  <Select value={newProductUnite} onValueChange={setNewProductUnite}>
-                    <SelectTrigger className="min-h-touch" data-testid="select-unit">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="u">Unité (u)</SelectItem>
-                      <SelectItem value="m">Mètre (m)</SelectItem>
-                      <SelectItem value="kg">Kilogramme (kg)</SelectItem>
-                      <SelectItem value="L">Litre (L)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantiteInitiale">Quantité initiale *</Label>
-                  <Input
-                    id="quantiteInitiale"
-                    type="number"
-                    min="1"
-                    value={newProductQuantite}
-                    onChange={(e) => setNewProductQuantite(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="min-h-touch"
-                    data-testid="input-initial-quantity"
-                  />
-                </div>
-
-                <div className="bg-[hsl(217,91%,60%)]/10 border border-[hsl(217,91%,60%)]/20 rounded-md p-3">
-                  <p className="text-sm text-muted-foreground">
-                    Ce produit sera créé avec le statut "en attente" et devra être validé par un administrateur.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleCreateProduct}
-              disabled={
-                createProductMutation.isPending ||
-                !newProductName ||
-                !newProductCategorie ||
-                newProductCategorie === "__nouvelle__" ||
-                !newProductSousSection
-              }
-              data-testid="button-create-product"
-            >
-              {createProductMutation.isPending ? "Création..." : "CRÉER LE PRODUIT"}
-            </Button>
-          </div>
+          <CreateProductForm
+            currentUserId={currentUserId!}
+            onSuccess={() => {
+              setShowNewProductForm(false);
+              setLocation("/");
+            }}
+            onCancel={() => setShowNewProductForm(false)}
+            initialProductName={searchQuery}
+          />
         ) : (
           /* Résultats de recherche ou bouton créer */
           <>
@@ -357,10 +201,7 @@ export default function Deposer() {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => {
-                      setNewProductName(searchQuery);
-                      setShowNewProductForm(true);
-                    }}
+                    onClick={() => setShowNewProductForm(true)}
                     data-testid="button-create-new-product"
                   >
                     <Plus className="mr-2 h-4 w-4" />

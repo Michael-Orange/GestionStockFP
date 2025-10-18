@@ -11,7 +11,7 @@ import Rendre from "@/pages/rendre";
 import Deposer from "@/pages/deposer";
 import Stock from "@/pages/stock";
 import Admin from "@/pages/admin";
-import Panier from "@/pages/panier";
+import Liste from "@/pages/panier";
 
 function Router() {
   return (
@@ -22,7 +22,7 @@ function Router() {
       <Route path="/deposer" component={Deposer} />
       <Route path="/stock" component={Stock} />
       <Route path="/admin" component={Admin} />
-      <Route path="/panier" component={Panier} />
+      <Route path="/panier" component={Liste} />
       <Route component={NotFound} />
     </Switch>
   );

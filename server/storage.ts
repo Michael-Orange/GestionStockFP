@@ -1,12 +1,12 @@
 // Storage interface for FiltrePlante stock management
 import { 
-  users, products, movements, alerts, paniers, panierItems,
+  users, products, movements, alerts, listes, listeItems,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type Movement, type InsertMovement,
   type Alert, type InsertAlert,
-  type Panier, type InsertPanier,
-  type PanierItem, type InsertPanierItem
+  type Liste, type InsertListe,
+  type ListeItem, type InsertListeItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -16,6 +16,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserPassword(userId: number, passwordHash: string): Promise<void>;
   
   // Products
   getProduct(id: number): Promise<Product | undefined>;
@@ -38,12 +39,12 @@ export interface IStorage {
   createAlert(alert: InsertAlert): Promise<Alert>;
   markAlertAsRead(id: number): Promise<Alert>;
   
-  // Panier
-  getPanierWithItems(userId: number): Promise<{ panier: Panier | undefined; items: (PanierItem & { product: Product | null; movement: Movement | null })[] }>;
-  addItemToPanier(userId: number, item: Omit<InsertPanierItem, "panierId">): Promise<PanierItem>;
-  removeItemFromPanier(itemId: number): Promise<void>;
-  clearPanier(userId: number): Promise<void>;
-  updatePanierTimestamp(userId: number): Promise<void>;
+  // Liste
+  getListeWithItems(userId: number): Promise<{ liste: Liste | undefined; items: (ListeItem & { product: Product | null; movement: Movement | null })[] }>;
+  addItemToListe(userId: number, item: Omit<InsertListeItem, "listeId">): Promise<ListeItem>;
+  removeItemFromListe(itemId: number): Promise<void>;
+  clearListe(userId: number): Promise<void>;
+  updateListeTimestamp(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -63,6 +64,13 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  async updateUserPassword(userId: number, passwordHash: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, userId));
   }
 
   // Products
@@ -179,17 +187,17 @@ export class DatabaseStorage implements IStorage {
     return alert;
   }
 
-  // Panier
-  async getPanierWithItems(userId: number): Promise<{ panier: Panier | undefined; items: (PanierItem & { product: Product | null; movement: Movement | null })[] }> {
-    // Get or create panier for user
-    let [panier] = await db
+  // Liste
+  async getListeWithItems(userId: number): Promise<{ liste: Liste | undefined; items: (ListeItem & { product: Product | null; movement: Movement | null })[] }> {
+    // Get or create liste for user
+    let [liste] = await db
       .select()
-      .from(paniers)
-      .where(eq(paniers.utilisateurId, userId));
+      .from(listes)
+      .where(eq(listes.utilisateurId, userId));
 
-    if (!panier) {
-      [panier] = await db
-        .insert(paniers)
+    if (!liste) {
+      [liste] = await db
+        .insert(listes)
         .values({ utilisateurId: userId })
         .returning();
     }
@@ -197,89 +205,89 @@ export class DatabaseStorage implements IStorage {
     // Get all items with joined product/movement data
     const items = await db
       .select({
-        id: panierItems.id,
-        panierId: panierItems.panierId,
-        typeAction: panierItems.typeAction,
-        produitId: panierItems.produitId,
-        typeMouvement: panierItems.typeMouvement,
-        movementId: panierItems.movementId,
-        quantite: panierItems.quantite,
+        id: listeItems.id,
+        listeId: listeItems.listeId,
+        typeAction: listeItems.typeAction,
+        produitId: listeItems.produitId,
+        typeMouvement: listeItems.typeMouvement,
+        movementId: listeItems.movementId,
+        quantite: listeItems.quantite,
         product: products,
         movement: movements,
       })
-      .from(panierItems)
-      .leftJoin(products, eq(panierItems.produitId, products.id))
-      .leftJoin(movements, eq(panierItems.movementId, movements.id))
-      .where(eq(panierItems.panierId, panier.id));
+      .from(listeItems)
+      .leftJoin(products, eq(listeItems.produitId, products.id))
+      .leftJoin(movements, eq(listeItems.movementId, movements.id))
+      .where(eq(listeItems.listeId, liste.id));
 
-    return { panier, items: items as (PanierItem & { product: Product | null; movement: Movement | null })[] };
+    return { liste, items: items as (ListeItem & { product: Product | null; movement: Movement | null })[] };
   }
 
-  async addItemToPanier(userId: number, item: Omit<InsertPanierItem, "panierId">): Promise<PanierItem> {
-    // Get or create panier
-    let [panier] = await db
+  async addItemToListe(userId: number, item: Omit<InsertListeItem, "listeId">): Promise<ListeItem> {
+    // Get or create liste
+    let [liste] = await db
       .select()
-      .from(paniers)
-      .where(eq(paniers.utilisateurId, userId));
+      .from(listes)
+      .where(eq(listes.utilisateurId, userId));
 
-    if (!panier) {
-      [panier] = await db
-        .insert(paniers)
+    if (!liste) {
+      [liste] = await db
+        .insert(listes)
         .values({ utilisateurId: userId })
         .returning();
     }
 
     // Update timestamp
     await db
-      .update(paniers)
+      .update(listes)
       .set({ dateModification: new Date() })
-      .where(eq(paniers.id, panier.id));
+      .where(eq(listes.id, liste.id));
 
     // Add item
-    const [panierItem] = await db
-      .insert(panierItems)
-      .values({ ...item, panierId: panier.id })
+    const [listeItem] = await db
+      .insert(listeItems)
+      .values({ ...item, listeId: liste.id })
       .returning();
 
-    return panierItem;
+    return listeItem;
   }
 
-  async removeItemFromPanier(itemId: number): Promise<void> {
-    // Get the item to find panier
+  async removeItemFromListe(itemId: number): Promise<void> {
+    // Get the item to find liste
     const [item] = await db
       .select()
-      .from(panierItems)
-      .where(eq(panierItems.id, itemId));
+      .from(listeItems)
+      .where(eq(listeItems.id, itemId));
 
     if (item) {
       // Remove item
-      await db.delete(panierItems).where(eq(panierItems.id, itemId));
+      await db.delete(listeItems).where(eq(listeItems.id, itemId));
 
-      // Update panier timestamp
+      // Update liste timestamp
       await db
-        .update(paniers)
+        .update(listes)
         .set({ dateModification: new Date() })
-        .where(eq(paniers.id, item.panierId));
+        .where(eq(listes.id, item.listeId));
     }
   }
 
-  async clearPanier(userId: number): Promise<void> {
-    const [panier] = await db
+  async clearListe(userId: number): Promise<void> {
+    const [liste] = await db
       .select()
-      .from(paniers)
-      .where(eq(paniers.utilisateurId, userId));
+      .from(listes)
+      .where(eq(listes.utilisateurId, userId));
 
-    if (panier) {
-      await db.delete(panierItems).where(eq(panierItems.panierId, panier.id));
-      await db.delete(paniers).where(eq(paniers.id, panier.id));
+    if (liste) {
+      await db.delete(listeItems).where(eq(listeItems.listeId, liste.id));
+      await db.delete(listes).where(eq(listes.id, liste.id));
     }
   }
 
-  async updatePanierTimestamp(userId: number): Promise<void> {
+  async updateListeTimestamp(userId: number): Promise<void> {
     await db
-      .update(paniers)
+      .update(listes)
       .set({ dateModification: new Date() })
-      .where(eq(paniers.utilisateurId, userId));
+      .where(eq(listes.utilisateurId, userId));
   }
 }
 

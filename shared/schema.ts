@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   nom: text("nom").notNull(),
   email: text("email").notNull().unique(),
   role: text("role").notNull().default("utilisateur"), // "admin" | "utilisateur"
+  passwordHash: text("password_hash"), // nullable, uniquement pour admins
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
@@ -78,24 +79,24 @@ export const insertAlertSchema = createInsertSchema(alerts).omit({
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type Alert = typeof alerts.$inferSelect;
 
-// PANIERS
-export const paniers = pgTable("paniers", {
+// LISTES
+export const listes = pgTable("listes", {
   id: serial("id").primaryKey(),
   utilisateurId: integer("utilisateur_id").notNull(),
   dateModification: timestamp("date_modification").notNull().defaultNow(),
 });
 
-export const insertPanierSchema = createInsertSchema(paniers).omit({ 
+export const insertListeSchema = createInsertSchema(listes).omit({ 
   id: true, 
   dateModification: true 
 });
-export type InsertPanier = z.infer<typeof insertPanierSchema>;
-export type Panier = typeof paniers.$inferSelect;
+export type InsertListe = z.infer<typeof insertListeSchema>;
+export type Liste = typeof listes.$inferSelect;
 
-// PANIER ITEMS
-export const panierItems = pgTable("panier_items", {
+// LISTE ITEMS
+export const listeItems = pgTable("liste_items", {
   id: serial("id").primaryKey(),
-  panierId: integer("panier_id").notNull(),
+  listeId: integer("liste_id").notNull(),
   typeAction: text("type_action").notNull(), // "prendre" | "rendre"
   
   // Pour PRENDRE: produit + quantité + type
@@ -108,18 +109,18 @@ export const panierItems = pgTable("panier_items", {
   quantite: integer("quantite").notNull(),
 });
 
-export const insertPanierItemSchema = createInsertSchema(panierItems).omit({ 
+export const insertListeItemSchema = createInsertSchema(listeItems).omit({ 
   id: true
 });
-export type InsertPanierItem = z.infer<typeof insertPanierItemSchema>;
-export type PanierItem = typeof panierItems.$inferSelect;
+export type InsertListeItem = z.infer<typeof insertListeItemSchema>;
+export type ListeItem = typeof listeItems.$inferSelect;
 
 // RELATIONS
 export const usersRelations = relations(users, ({ many }) => ({
   movements: many(movements),
   productsCreated: many(products),
   alerts: many(alerts),
-  paniers: many(paniers),
+  listes: many(listes),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -158,25 +159,25 @@ export const alertsRelations = relations(alerts, ({ one }) => ({
   }),
 }));
 
-export const paniersRelations = relations(paniers, ({ one, many }) => ({
+export const listesRelations = relations(listes, ({ one, many }) => ({
   user: one(users, {
-    fields: [paniers.utilisateurId],
+    fields: [listes.utilisateurId],
     references: [users.id],
   }),
-  items: many(panierItems),
+  items: many(listeItems),
 }));
 
-export const panierItemsRelations = relations(panierItems, ({ one }) => ({
-  panier: one(paniers, {
-    fields: [panierItems.panierId],
-    references: [paniers.id],
+export const listeItemsRelations = relations(listeItems, ({ one }) => ({
+  liste: one(listes, {
+    fields: [listeItems.listeId],
+    references: [listes.id],
   }),
   product: one(products, {
-    fields: [panierItems.produitId],
+    fields: [listeItems.produitId],
     references: [products.id],
   }),
   movement: one(movements, {
-    fields: [panierItems.movementId],
+    fields: [listeItems.movementId],
     references: [movements.id],
   }),
 }));

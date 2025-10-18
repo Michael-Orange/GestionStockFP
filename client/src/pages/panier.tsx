@@ -6,21 +6,21 @@ import { Trash2, ShoppingCart, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { PanierItem, Product, Movement } from "@shared/schema";
+import type { ListeItem, Product, Movement } from "@shared/schema";
 
-type PanierItemWithDetails = PanierItem & {
+type ListeItemWithDetails = ListeItem & {
   product: Product | null;
   movement: Movement | null;
 };
 
-export default function Panier() {
+export default function Liste() {
   const { currentUserId } = useCurrentUser();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  // Get panier with items
-  const { data, isLoading } = useQuery<{ panier: any; items: PanierItemWithDetails[] }>({
-    queryKey: ["/api/panier", currentUserId],
+  // Get liste with items
+  const { data, isLoading } = useQuery<{ liste: any; items: ListeItemWithDetails[] }>({
+    queryKey: ["/api/liste", currentUserId],
     enabled: !!currentUserId,
   });
 
@@ -31,17 +31,17 @@ export default function Panier() {
   // Remove item mutation
   const removeItemMutation = useMutation({
     mutationFn: async (itemId: number) => {
-      const response = await fetch(`/api/panier/item/${itemId}`, {
+      const response = await fetch(`/api/liste/item/${itemId}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
         title: "Article retiré",
-        description: "L'article a été retiré du panier",
+        description: "L'article a été retiré de la liste",
       });
     },
     onError: (error: any) => {
@@ -53,39 +53,39 @@ export default function Panier() {
     },
   });
 
-  // Clear panier mutation
-  const clearPanierMutation = useMutation({
+  // Clear liste mutation
+  const clearListeMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/panier/${currentUserId}/clear`, {
+      const response = await fetch(`/api/liste/${currentUserId}/clear`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
-        title: "Panier vidé",
+        title: "Liste vidée",
         description: "Tous les articles ont été retirés",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de vider le panier",
+        description: error.message || "Impossible de vider la liste",
         variant: "destructive",
       });
     },
   });
 
-  // Validate panier mutation
-  const validatePanierMutation = useMutation({
+  // Validate liste mutation
+  const validateListeMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/panier/${currentUserId}/validate`);
+      const response = await apiRequest("POST", `/api/liste/${currentUserId}/validate`);
       return response.json();
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       queryClient.invalidateQueries({ queryKey: ["/api/movements/active", currentUserId] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       
@@ -99,7 +99,7 @@ export default function Panier() {
     onError: (error: any) => {
       toast({
         title: "Erreur de validation",
-        description: error.message || "Impossible de valider le panier",
+        description: error.message || "Impossible de valider la liste",
         variant: "destructive",
       });
     },
@@ -135,7 +135,7 @@ export default function Panier() {
           <div className="flex-1">
             <h1 className="text-xl font-semibold flex items-center gap-2">
               <ShoppingCart className="h-5 w-5" />
-              Mon Panier
+              Ma Liste
             </h1>
             <p className="text-sm text-muted-foreground">
               {items.length} article{items.length > 1 ? "s" : ""}
@@ -155,7 +155,7 @@ export default function Panier() {
           <Card>
             <CardContent className="py-8 text-center">
               <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">Votre panier est vide</p>
+              <p className="text-muted-foreground mb-4">Votre liste est vide</p>
               <Link href="/">
                 <Button data-testid="button-home-empty">
                   Retour à l'accueil
@@ -244,24 +244,24 @@ export default function Panier() {
             {/* Actions */}
             <div className="space-y-3">
               <Button
-                onClick={() => validatePanierMutation.mutate()}
-                disabled={validatePanierMutation.isPending}
+                onClick={() => validateListeMutation.mutate()}
+                disabled={validateListeMutation.isPending}
                 className="w-full h-14 text-lg"
                 data-testid="button-validate"
               >
                 <CheckCircle2 className="h-5 w-5 mr-2" />
-                {validatePanierMutation.isPending ? "Validation..." : "Valider le panier"}
+                {validateListeMutation.isPending ? "Validation..." : "Valider la liste"}
               </Button>
 
               <Button
                 variant="outline"
-                onClick={() => clearPanierMutation.mutate()}
-                disabled={clearPanierMutation.isPending}
+                onClick={() => clearListeMutation.mutate()}
+                disabled={clearListeMutation.isPending}
                 className="w-full h-12"
                 data-testid="button-clear"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Vider le panier
+                Vider la liste
               </Button>
             </div>
           </>

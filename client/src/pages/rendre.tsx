@@ -6,6 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ChevronLeft, Package, Minus, Plus, ShoppingCart } from "lucide-react";
 import { LoanDurationBadge } from "@/components/loan-duration-badge";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +29,7 @@ export default function Rendre() {
 
   const [selectedLoan, setSelectedLoan] = useState<ActiveLoan | null>(null);
   const [quantite, setQuantite] = useState(1);
+  const [showExitDialog, setShowExitDialog] = useState(false);
 
   if (!currentUser) {
     setLocation("/");
@@ -29,6 +40,13 @@ export default function Rendre() {
   const { data: activeLoans = [], isLoading } = useQuery<ActiveLoan[]>({
     queryKey: ["/api/movements/active", currentUserId],
   });
+
+  // Récupérer la liste pour compter les items
+  const { data: listeData } = useQuery<{ liste: any; items: any[] }>({
+    queryKey: ["/api/liste", currentUserId],
+  });
+
+  const listeCount = listeData?.items?.length || 0;
 
   // Mutation pour retourner
   const returnMutation = useMutation({
@@ -53,18 +71,18 @@ export default function Rendre() {
     },
   });
 
-  // Mutation pour ajouter au panier
-  const addToPanierMutation = useMutation({
+  // Mutation pour ajouter à la liste
+  const addToListeMutation = useMutation({
     mutationFn: async (data: { mouvementId: number; quantite: number; typeAction: string }) => {
-      return apiRequest("POST", "/api/panier/add", {
+      return apiRequest("POST", "/api/liste/add", {
         userId: currentUserId,
         item: data,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
-        title: "Ajouté au panier",
+        title: "Ajouté à la liste",
         description: `${selectedLoan?.product.nom} × ${quantite} ${selectedLoan?.product.unite}`,
       });
       // Reset pour continuer à ajouter d'autres retours
@@ -74,7 +92,26 @@ export default function Rendre() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible d'ajouter au panier",
+        description: error.message || "Impossible d'ajouter à la liste",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation pour vider la liste
+  const clearListeMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/liste/${currentUserId}/clear`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
+      setShowExitDialog(false);
+      setLocation("/");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de vider la liste",
         variant: "destructive",
       });
     },
@@ -89,10 +126,10 @@ export default function Rendre() {
     });
   };
 
-  const handleAddToPanier = () => {
+  const handleAddToListe = () => {
     if (!selectedLoan) return;
     
-    addToPanierMutation.mutate({
+    addToListeMutation.mutate({
       mouvementId: selectedLoan.id,
       quantite,
       typeAction: "rendre",
@@ -113,7 +150,12 @@ export default function Rendre() {
                   setSelectedLoan(null);
                   setQuantite(1);
                 } else {
-                  setLocation("/");
+                  // Retour à la home
+                  if (listeCount > 0) {
+                    setShowExitDialog(true);
+                  } else {
+                    setLocation("/");
+                  }
                 }
               }}
               data-testid="button-back"
@@ -192,27 +234,16 @@ export default function Rendre() {
             </Card>
 
             {/* Boutons d'action */}
-            <div className="flex flex-col gap-3">
+            <div>
               <Button
-                variant="outline"
                 className="w-full"
                 size="lg"
-                onClick={handleAddToPanier}
-                disabled={addToPanierMutation.isPending || quantite < 1 || quantite > selectedLoan.quantite}
+                onClick={handleAddToListe}
+                disabled={addToListeMutation.isPending || quantite < 1 || quantite > selectedLoan.quantite}
                 data-testid="button-add-to-cart-return"
               >
                 <ShoppingCart className="h-5 w-5 mr-2" />
-                {addToPanierMutation.isPending ? "Ajout..." : "AJOUTER AU PANIER"}
-              </Button>
-              
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleValidate}
-                disabled={returnMutation.isPending || quantite < 1 || quantite > selectedLoan.quantite}
-                data-testid="button-validate-return"
-              >
-                {returnMutation.isPending ? "Enregistrement..." : "VALIDER MAINTENANT"}
+                {addToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
               </Button>
             </div>
           </div>
@@ -261,6 +292,43 @@ export default function Rendre() {
           </>
         )}
       </div>
+
+      {/* Modale de confirmation de sortie */}
+      <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <AlertDialogContent data-testid="dialog-exit-confirmation">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vous avez {listeCount} article{listeCount > 1 ? 's' : ''} dans votre liste</AlertDialogTitle>
+            <AlertDialogDescription>
+              Que souhaitez-vous faire avec votre liste ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogCancel
+              onClick={() => setShowExitDialog(false)}
+              data-testid="button-continue-adding"
+            >
+              Continuer l'ajout
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowExitDialog(false);
+                setLocation("/panier");
+              }}
+              data-testid="button-validate-list"
+            >
+              Valider ma liste
+            </AlertDialogAction>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => clearListeMutation.mutate()}
+              disabled={clearListeMutation.isPending}
+              data-testid="button-clear-list"
+            >
+              {clearListeMutation.isPending ? "Suppression..." : "Vider ma liste"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

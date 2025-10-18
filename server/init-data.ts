@@ -3,6 +3,7 @@ import { storage } from "./storage";
 import { parse } from "csv-parse/sync";
 import { readFileSync } from "fs";
 import { join } from "path";
+import bcrypt from "bcrypt";
 
 export async function initializeData() {
   console.log("🚀 Initializing FiltrePlante data...");
@@ -13,20 +14,33 @@ export async function initializeData() {
     
     if (existingUsers.length === 0) {
       console.log("📝 Creating default users...");
+      
+      // Hash password for admins: "Fplante@Stock1!"
+      const adminPasswordHash = await bcrypt.hash("Fplante@Stock1!", 10);
+      
       const defaultUsers = [
-        { nom: "Marine", email: "marine@filtreplante.com", role: "utilisateur" },
-        { nom: "Fatou", email: "fatou@filtreplante.com", role: "utilisateur" },
-        { nom: "Michael", email: "michael@filtreplante.com", role: "admin" },
-        { nom: "Cheikh", email: "cheikh@filtreplante.com", role: "utilisateur" },
-        { nom: "Papa", email: "papa@filtreplante.com", role: "utilisateur" },
+        { nom: "Marine", email: "marine@filtreplante.com", role: "admin", passwordHash: adminPasswordHash },
+        { nom: "Fatou", email: "fatou@filtreplante.com", role: "utilisateur", passwordHash: null },
+        { nom: "Michael", email: "michael@filtreplante.com", role: "admin", passwordHash: adminPasswordHash },
+        { nom: "Cheikh", email: "cheikh@filtreplante.com", role: "utilisateur", passwordHash: null },
+        { nom: "Papa", email: "papa@filtreplante.com", role: "utilisateur", passwordHash: null },
       ];
 
       for (const user of defaultUsers) {
         await storage.createUser(user);
       }
-      console.log("✅ Users created: 5");
+      console.log("✅ Users created: 5 (admins avec mot de passe configuré)");
     } else {
       console.log(`✅ Users already exist: ${existingUsers.length}`);
+      
+      // Mise à jour des mots de passe admin si nécessaire
+      const adminPasswordHash = await bcrypt.hash("Fplante@Stock1!", 10);
+      for (const user of existingUsers) {
+        if (user.role === "admin" && !user.passwordHash) {
+          await storage.updateUserPassword(user.id, adminPasswordHash);
+          console.log(`🔒 Mot de passe ajouté pour ${user.nom}`);
+        }
+      }
     }
   } catch (error) {
     console.error("❌ Error creating users:", error);

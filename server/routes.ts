@@ -2,11 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { insertProductSchema, insertMovementSchema, insertAlertSchema, paniers, panierItems } from "@shared/schema";
+import { insertProductSchema, insertMovementSchema, insertAlertSchema, listes, listeItems } from "@shared/schema";
 import { parse } from "csv-parse/sync";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to calculate available stock
@@ -38,6 +39,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       stockStatus,
     };
   };
+
+  // ========== AUTHENTICATION ==========
+  
+  // POST /api/auth/verify-admin - Verify admin password
+  app.post("/api/auth/verify-admin", async (req, res) => {
+    try {
+      const { userId, password } = req.body;
+      
+      if (!userId || !password) {
+        return res.status(400).json({ error: "userId et password requis" });
+      }
+      
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ error: "Utilisateur n'est pas admin" });
+      }
+      
+      if (!user.passwordHash) {
+        return res.status(500).json({ error: "Mot de passe non configuré pour cet admin" });
+      }
+      
+      const isValid = await bcrypt.compare(password, user.passwordHash);
+      
+      if (isValid) {
+        res.json({ success: true, user: { id: user.id, nom: user.nom, role: user.role } });
+      } else {
+        res.status(401).json({ success: false, error: "Mot de passe incorrect" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // ========== PRODUCTS ==========
   
@@ -93,6 +131,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       res.json(categories);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/categories/:categorie/sous-sections - Get all sous-sections for a category
+  app.get("/api/categories/:categorie/sous-sections", async (req, res) => {
+    try {
+      const { categorie } = req.params;
+      const allProducts = await storage.getAllProducts();
+      const validatedProducts = allProducts.filter(
+        (p) => p.statut === "valide" && p.categorie === categorie
+      );
+      
+      const sousSectionsSet = new Set<string>();
+      validatedProducts.forEach((product) => {
+        sousSectionsSet.add(product.sousSection);
+      });
+
+      const sousSections = Array.from(sousSectionsSet).sort();
+      res.json(sousSections);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -478,25 +537,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ========== PANIER ==========
+  // ========== LISTE ==========
 
-  // GET /api/panier/:userId - Get user's panier with items
-  app.get("/api/panier/:userId", async (req, res) => {
+  // GET /api/liste/:userId - Get user's liste with items
+  app.get("/api/liste/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
-      const { panier, items } = await storage.getPanierWithItems(userId);
-      res.json({ panier, items });
+      const { liste, items } = await storage.getListeWithItems(userId);
+      res.json({ liste, items });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // POST /api/panier/add - Add item to panier
-  app.post("/api/panier/add", async (req, res) => {
+  // POST /api/liste/add - Add item to liste
+  app.post("/api/liste/add", async (req, res) => {
     try {
       const { userId, item: itemData } = req.body;
       
-      const item = await storage.addItemToPanier(userId, {
+      const item = await storage.addItemToListe(userId, {
         typeAction: itemData.typeAction,
         produitId: itemData.produitId || null,
         typeMouvement: itemData.typeEmprunt || null,
@@ -510,36 +569,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DELETE /api/panier/item/:itemId - Remove item from panier
-  app.delete("/api/panier/item/:itemId", async (req, res) => {
+  // DELETE /api/liste/item/:itemId - Remove item from liste
+  app.delete("/api/liste/item/:itemId", async (req, res) => {
     try {
       const itemId = parseInt(req.params.itemId);
-      await storage.removeItemFromPanier(itemId);
+      await storage.removeItemFromListe(itemId);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  // DELETE /api/panier/:userId/clear - Clear user's panier
-  app.delete("/api/panier/:userId/clear", async (req, res) => {
+  // DELETE /api/liste/:userId/clear - Clear user's liste
+  app.delete("/api/liste/:userId/clear", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
-      await storage.clearPanier(userId);
+      await storage.clearListe(userId);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  // POST /api/panier/:userId/validate - Validate panier and create movements
-  app.post("/api/panier/:userId/validate", async (req, res) => {
+  // POST /api/liste/:userId/validate - Validate liste and create movements
+  app.post("/api/liste/:userId/validate", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
-      const { panier, items } = await storage.getPanierWithItems(userId);
+      const { liste, items } = await storage.getListeWithItems(userId);
 
       if (!items || items.length === 0) {
-        return res.status(400).json({ error: "Panier vide" });
+        return res.status(400).json({ error: "Liste vide" });
       }
 
       // TODO: Wrap all operations in a transaction for atomicity
@@ -634,8 +693,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Clear panier after successful validation
-      await storage.clearPanier(userId);
+      // Clear liste after successful validation
+      await storage.clearListe(userId);
 
       res.json({ success: true, results });
     } catch (error: any) {

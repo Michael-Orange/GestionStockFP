@@ -7,8 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ChevronLeft, Search, Package, Minus, Plus, ShoppingCart } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
+import { CreateProductForm } from "@/components/create-product-form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock, CategoryInfo } from "@/lib/types";
@@ -27,6 +38,8 @@ export default function Prendre() {
   const [quantite, setQuantite] = useState(1);
   const [typeEmprunt, setTypeEmprunt] = useState<"pret" | "consommation">("pret");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [showNewProductForm, setShowNewProductForm] = useState(false);
 
   if (!currentUser) {
     setLocation("/");
@@ -42,6 +55,13 @@ export default function Prendre() {
   const { data: categories = [] } = useQuery<CategoryInfo[]>({
     queryKey: ["/api/categories"],
   });
+
+  // Récupérer la liste pour compter les items
+  const { data: listeData } = useQuery<{ liste: any; items: any[] }>({
+    queryKey: ["/api/liste", currentUserId],
+  });
+
+  const listeCount = listeData?.items?.length || 0;
 
   // Mutation pour emprunter
   const borrowMutation = useMutation({
@@ -69,18 +89,18 @@ export default function Prendre() {
     },
   });
 
-  // Mutation pour ajouter au panier
-  const addToPanierMutation = useMutation({
+  // Mutation pour ajouter à la liste
+  const addToListeMutation = useMutation({
     mutationFn: async (data: { produitId: number; quantite: number; typeAction: string; typeEmprunt: string }) => {
-      return apiRequest("POST", "/api/panier/add", {
+      return apiRequest("POST", "/api/liste/add", {
         userId: currentUserId,
         item: data,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/panier", currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
-        title: "Ajouté au panier",
+        title: "Ajouté à la liste",
         description: `${selectedProduct?.nom} × ${quantite} ${selectedProduct?.unite}`,
       });
       // Reset pour continuer à ajouter d'autres produits
@@ -90,7 +110,26 @@ export default function Prendre() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible d'ajouter au panier",
+        description: error.message || "Impossible d'ajouter à la liste",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation pour vider la liste
+  const clearListeMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/liste/${currentUserId}/clear`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
+      setShowExitDialog(false);
+      setLocation("/");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de vider la liste",
         variant: "destructive",
       });
     },
@@ -134,10 +173,10 @@ export default function Prendre() {
     });
   };
 
-  const handleAddToPanier = () => {
+  const handleAddToListe = () => {
     if (!selectedProduct) return;
     
-    addToPanierMutation.mutate({
+    addToListeMutation.mutate({
       produitId: selectedProduct.id,
       quantite,
       typeAction: "prendre",
@@ -168,8 +207,9 @@ export default function Prendre() {
               variant="ghost"
               size="icon"
               onClick={() => {
-                if (selectedProduct) {
+                if (selectedProduct || showNewProductForm) {
                   setSelectedProduct(null);
+                  setShowNewProductForm(false);
                   setQuantite(1);
                 } else if (selectedSousSection) {
                   setSelectedSousSection("");
@@ -178,7 +218,12 @@ export default function Prendre() {
                   setSelectedCategorie("");
                   setViewMode("categories");
                 } else {
-                  setLocation("/");
+                  // Retour à la home
+                  if (listeCount > 0) {
+                    setShowExitDialog(true);
+                  } else {
+                    setLocation("/");
+                  }
                 }
               }}
               data-testid="button-back"
@@ -192,7 +237,7 @@ export default function Prendre() {
           </div>
 
           {/* Search Bar */}
-          {!selectedProduct && (
+          {!selectedProduct && !showNewProductForm && (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -209,7 +254,18 @@ export default function Prendre() {
       </header>
 
       <div className="px-4 py-6 space-y-4">
-        {selectedProduct ? (
+        {showNewProductForm ? (
+          /* Formulaire de création de produit */
+          <CreateProductForm
+            currentUserId={currentUserId!}
+            onSuccess={() => {
+              setShowNewProductForm(false);
+              setSearchQuery("");
+            }}
+            onCancel={() => setShowNewProductForm(false)}
+            initialProductName={searchQuery}
+          />
+        ) : selectedProduct ? (
           /* Formulaire de prêt */
           <div className="space-y-6">
             <Card>
@@ -291,27 +347,16 @@ export default function Prendre() {
             </Card>
 
             {/* Boutons d'action */}
-            <div className="flex flex-col gap-3">
+            <div>
               <Button
-                variant="outline"
                 className="w-full"
                 size="lg"
-                onClick={handleAddToPanier}
-                disabled={addToPanierMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
+                onClick={handleAddToListe}
+                disabled={addToListeMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
                 data-testid="button-add-to-cart"
               >
                 <ShoppingCart className="h-5 w-5 mr-2" />
-                {addToPanierMutation.isPending ? "Ajout..." : "AJOUTER AU PANIER"}
-              </Button>
-              
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleValidate}
-                disabled={borrowMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
-                data-testid="button-validate-borrow"
-              >
-                {borrowMutation.isPending ? "Enregistrement..." : "VALIDER MAINTENANT"}
+                {addToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
               </Button>
             </div>
           </div>
@@ -319,8 +364,21 @@ export default function Prendre() {
           /* Résultats de recherche */
           filteredProducts.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                Aucun produit trouvé
+              <CardContent className="py-8 space-y-4">
+                <p className="text-center text-muted-foreground">
+                  Aucun produit trouvé pour "{searchQuery}"
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setShowNewProductForm(true);
+                  }}
+                  data-testid="button-create-new-product"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Créer un nouveau produit
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -433,6 +491,43 @@ export default function Prendre() {
           </div>
         )}
       </div>
+
+      {/* Modale de confirmation de sortie */}
+      <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <AlertDialogContent data-testid="dialog-exit-confirmation">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vous avez {listeCount} article{listeCount > 1 ? 's' : ''} dans votre liste</AlertDialogTitle>
+            <AlertDialogDescription>
+              Que souhaitez-vous faire avec votre liste ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogCancel
+              onClick={() => setShowExitDialog(false)}
+              data-testid="button-continue-adding"
+            >
+              Continuer l'ajout
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowExitDialog(false);
+                setLocation("/panier");
+              }}
+              data-testid="button-validate-list"
+            >
+              Valider ma liste
+            </AlertDialogAction>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => clearListeMutation.mutate()}
+              disabled={clearListeMutation.isPending}
+              data-testid="button-clear-list"
+            >
+              {clearListeMutation.isPending ? "Suppression..." : "Vider ma liste"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
