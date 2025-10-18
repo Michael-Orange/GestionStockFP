@@ -51,20 +51,20 @@ export default function Home() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Link href="/prendre">
-              <Button className="w-full h-24 flex-col gap-2" size="lg" data-testid="button-prendre">
+              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--vert-vif))] hover:bg-[hsl(var(--vert-vif))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-prendre">
                 <ArrowDownToLine className="h-6 w-6" />
                 <span className="text-base font-medium">PRENDRE</span>
               </Button>
             </Link>
             <Link href="/deposer">
-              <Button className="w-full h-24 flex-col gap-2" size="lg" variant="outline" data-testid="button-deposer">
+              <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--bleu-eau))] hover:bg-[hsl(var(--bleu-eau))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-deposer">
                 <Package className="h-6 w-6" />
                 <span className="text-base font-medium">DÉPOSER</span>
               </Button>
             </Link>
           </div>
           <Link href="/stock">
-            <Button className="w-full h-24 flex-col gap-2" size="lg" variant="outline" data-testid="button-stock">
+            <Button className="w-full h-24 flex-col gap-2 bg-[hsl(var(--beige-terre))] hover:bg-[hsl(var(--beige-terre))]/90 text-white border-0 rounded-xl shadow-md" size="lg" data-testid="button-stock">
               <ClipboardList className="h-6 w-6" />
               <span className="text-base font-medium">STOCK</span>
             </Button>
@@ -83,10 +83,10 @@ export default function Home() {
 
       {/* Bouton CTA "Valider ma liste" - affiché uniquement si liste non vide */}
       {listeCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-lg">
           <Link href="/panier">
             <Button 
-              className="w-full" 
+              className="w-full bg-[hsl(var(--vert-vif))] hover:bg-[hsl(var(--vert-vif))]/90 text-white rounded-xl shadow-md" 
               size="lg"
               data-testid="button-validate-liste-cta"
             >
