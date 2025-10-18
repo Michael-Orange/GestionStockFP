@@ -11,20 +11,19 @@
 4. **Visual Feedback**: Immediate confirmation of all actions
 5. **Brand Cohesion**: Consistent use of FiltrePlante green/earth palette throughout
 
-## 🌿 FiltrePlante Color Palette
+## 🌿 FiltrePlante Color Palette (Officielle)
 
 ### Primary Brand Colors
-- **Vert Principal** (#2E7D32): Header, navigation principale, éléments de marque
-- **Vert Vif** (#4CAF50): Bouton PRENDRE, validations, confirmations positives
-- **Bleu Eau** (#1565C0): Bouton DÉPOSER, informations, actions secondaires
-- **Beige Terre** (#8D6E63): Bouton STOCK, sections neutres, éléments tertiaires
-- **Vert Clair** (#E8F5E8): Fonds de sections, arrière-plans doux, zones admin
+- **Teal Principal** (#157a70): Header, bouton PRENDRE, stock OK, éléments de marque
+- **Teal Secondaire** (#2997aa): Bouton DÉPOSER, badge session/panier, actions secondaires
+- **Beige Terre** (#8D6E63): Bouton STOCK (avec opacity 0.8), sections neutres
+- **Vert Clair** (#edf8f7): Cards, fonds admin, inputs, arrière-plans doux
 
 ### Status & Alert Colors
-- **Stock OK** (#4CAF50 - Vert Vif): Texte et indicateurs pour stock disponible
-- **Stock Faible** (#FF8F00 - Orange Alerte): Texte et badges pour stock bas
-- **Stock Vide** (#D32F2F - Rouge Urgent): Texte et alertes pour rupture
-- **Emprunts Actifs** (#1565C0 - Bleu Eau): Badges et compteurs d'emprunts
+- **Stock OK** (#157a70 - Teal Principal): Indicateurs pour stock disponible
+- **Stock Faible** (#FF8F00 - Orange Alerte): Badges pour stock bas
+- **Stock Vide** (#D32F2F - Rouge Urgent): Alertes pour rupture
+- **Badge Session** (#2997aa - Teal Secondaire): Badge panier/liste dans header
 
 ### Light Mode (Couleurs de fond et texte)
 - **Background**: 0 0% 98% (Blanc cassé)
@@ -42,13 +41,12 @@
 
 ### HSL Conversions for Tailwind
 Pour utiliser dans index.css (format HSL sans parenthèses):
-- **Vert Principal** (#2E7D32): 123 48% 33%
-- **Vert Vif** (#4CAF50): 122 39% 49%
-- **Bleu Eau** (#1565C0): 210 79% 43%
+- **Teal Principal** (#157a70): 174 69% 29%
+- **Teal Secondaire** (#2997aa): 191 63% 41%
 - **Beige Terre** (#8D6E63): 15 25% 47%
+- **Vert Clair** (#edf8f7): 171 43% 96%
 - **Orange Alerte** (#FF8F00): 34 100% 50%
 - **Rouge Urgent** (#D32F2F): 0 70% 51%
-- **Vert Clair** (#E8F5E8): 120 31% 94%
 
 ## Typography
 - **Font Family**: 'Inter' via Google Fonts CDN
@@ -67,20 +65,19 @@ Pour utiliser dans index.css (format HSL sans parenthèses):
 ## Component Specifications
 
 ### Header & Navigation
-- **Header "FiltrePlante"**: Fond Vert Principal (#2E7D32), texte blanc, hauteur 64px
-- **User Selector**: Intégré dans le header, texte blanc sur fond vert
-- **Badge session/panier**: Fond blanc avec nombre en Vert Principal (bon contraste), position top-right du header, ombre légère
+- **Header "FiltrePlante"**: Fond Teal Principal (#157a70), texte blanc, hauteur 64px
+- **User Selector**: Intégré dans le header, texte blanc sur fond teal
+- **Badge session/panier**: Fond Teal Secondaire (#2997aa), texte blanc, position top-right du header, ombre légère
 
 ### Action Buttons (Home Page)
-- **Bouton PRENDRE**: Fond Vert Principal (#2E7D32), texte blanc, icône blanche (bon contraste WCAG AA)
-- **Bouton DÉPOSER**: Fond Bleu Eau (#1565C0), texte blanc, icône blanche
-- **Bouton STOCK**: Fond Beige Terre (#8D6E63), texte blanc, icône blanche
-- **Bouton CTA "Valider ma liste"**: Fond Vert Principal (#2E7D32), texte blanc (accessibilité)
-- **Bouton RENDRE**: Style outline avec bordure Vert Principal, texte Vert Principal
+- **Bouton PRENDRE**: Fond Teal Principal (#157a70), texte blanc, icône blanche (bon contraste WCAG AA)
+- **Bouton DÉPOSER**: Fond Teal Secondaire (#2997aa), texte blanc, icône blanche
+- **Bouton STOCK**: Fond Beige Terre (#8D6E63) avec opacity 0.8, texte blanc, icône blanche
+- **Espacement**: Gap plus important (space-y-6) entre groupe PRENDRE/DÉPOSER et bouton STOCK
+- **Bouton CTA "Valider ma liste"**: Fond Teal Principal (#157a70), texte blanc
 - Minimum height: 56px (mobile optimisé)
 - Border radius: 12px (coins arrondis modernes)
 - Box shadow: 0 2px 8px rgba(0,0,0,0.12) (ombres légères)
-- Note: Vert Vif (#4CAF50) n'est pas utilisé pour les boutons car le contraste avec texte blanc < WCAG AA
 
 ### Product Cards
 Display format: **"Product Name (current/total)"**
