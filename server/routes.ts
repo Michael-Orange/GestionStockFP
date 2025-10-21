@@ -650,6 +650,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         movementId: itemData.movementId || itemData.mouvementId || null, // Support both spellings
         quantite: itemData.quantite,
         quantitePerdue: itemData.quantitePerdue || 0,
+        longueur: itemData.longueur || null, // For Géomembrane deposits
+        largeur: itemData.largeur || null, // For Géomembrane deposits
       });
       
       res.json(item);
@@ -801,8 +803,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           let targetProductId = product.id;
           
+          // Debug logging for Géomembrane detection
+          console.error("=== DEPOSER DEBUG ===");
+          console.error("Product:", JSON.stringify({nom: product.nom, id: product.id, sousSection: product.sousSection}));
+          console.error("Item dims:", JSON.stringify({longueur: item.longueur, largeur: item.largeur}));
+          console.error("Condition:", product.sousSection === "Géomembranes", "&&", !!item.longueur, "&&", !!item.largeur);
+          
           // Handle Géomembrane deposits with dimensions
           if (product.sousSection === "Géomembranes" && item.longueur && item.largeur) {
+            console.error(">>> ENTERING GÉOMEMBRANE VARIANT CREATION LOGIC");
+
             // Normalize dimensions (smaller first)
             const minDim = Math.min(item.longueur, item.largeur);
             const maxDim = Math.max(item.longueur, item.largeur);

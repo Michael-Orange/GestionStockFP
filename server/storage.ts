@@ -226,6 +226,8 @@ export class DatabaseStorage implements IStorage {
         movementId: listeItems.movementId,
         quantite: listeItems.quantite,
         quantitePerdue: listeItems.quantitePerdue,
+        longueur: listeItems.longueur, // For Géomembrane deposits
+        largeur: listeItems.largeur, // For Géomembrane deposits
         product: products,
         movement: movements,
       })
