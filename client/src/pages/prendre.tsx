@@ -152,7 +152,7 @@ export default function Prendre() {
     .sort((a, b) => a.nom.localeCompare(b.nom));
 
   const sousSections = selectedCategorie
-    ? [...new Set(products.filter((p) => p.categorie === selectedCategorie).map((p) => p.sousSection))]
+    ? Array.from(new Set(products.filter((p) => p.categorie === selectedCategorie).map((p) => p.sousSection)))
         .sort((a, b) => {
           if (a === "Tous") return -1;
           if (b === "Tous") return 1;
