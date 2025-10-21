@@ -123,11 +123,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         catInfo.sousSections.add(product.sousSection);
       });
 
-      const categories = Array.from(categoryMap.entries()).map(([categorie, info]) => ({
-        categorie,
-        count: info.count,
-        sousSections: Array.from(info.sousSections),
-      }));
+      const categories = Array.from(categoryMap.entries())
+        .map(([categorie, info]) => ({
+          categorie,
+          count: info.count,
+          sousSections: Array.from(info.sousSections),
+        }))
+        .sort((a, b) => a.categorie.localeCompare(b.categorie));
 
       res.json(categories);
     } catch (error: any) {
@@ -149,7 +151,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sousSectionsSet.add(product.sousSection);
       });
 
-      const sousSections = Array.from(sousSectionsSet).sort();
+      // Tri avec "Tous" en premier, puis alphabétique
+      const sousSections = Array.from(sousSectionsSet).sort((a, b) => {
+        if (a === "Tous") return -1;
+        if (b === "Tous") return 1;
+        return a.localeCompare(b);
+      });
       res.json(sousSections);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
