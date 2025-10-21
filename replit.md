@@ -24,6 +24,7 @@ The frontend is built with React and TypeScript, leveraging Vite, Wouter for rou
 -   **Grouped Actions (Lists)**: Renamed from "Panier" (cart), this system allows users to group multiple "prendre" (take), "rendre" (return), and "déposer" (deposit) actions into a single list for validation. A global counter badge indicates pending actions.
 -   **Automated Email System**: Integrates with Resend for sending automated notifications to Marine and Michael. Emails include validation summaries for grouped actions and alerts for new product creations. Includes robust error logging with result.error verification and uses HTML templates with inline CSS for compatibility.
 -   **Home CTA Button**: Green fixed-bottom button "Valider ma liste (X items)" displayed on home page when list contains items, providing quick access to validation flow (18 Oct 2025).
+-   **Géomembrane Soft Delete System** (21 Oct 2025): Géomembranes are automatically deactivated when stock reaches 0 (via consumption or lost items) and hidden from product listings. They are automatically reactivated when stock is deposited. This prevents duplicate géomembrane products while preserving movement history. Detection criteria: `product.longueur && product.largeur && !product.estTemplate`. All stock-mutating endpoints (liste validation, direct borrow, direct deposit) implement this logic consistently.
 
 ### System Design Choices
 -   **Database**: PostgreSQL managed via Drizzle ORM.
