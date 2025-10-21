@@ -7,7 +7,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, ChevronDown, ChevronUp } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import type { ProductWithStock } from "@/lib/types";
-import { formatUnite } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,7 +15,7 @@ import {
 
 export default function Stock() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"tous" | "ok" | "faible" | "vide">("tous");
+  const [statusFilter, setStatusFilter] = useState<"tous" | "en_stock" | "pas_en_stock">("tous");
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [openSubSections, setOpenSubSections] = useState<Set<string>>(new Set());
 
@@ -113,11 +112,10 @@ export default function Stock() {
 
         {/* Filter Tabs */}
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-          <TabsList className="w-full grid grid-cols-4">
+          <TabsList className="w-full grid grid-cols-3">
             <TabsTrigger value="tous" data-testid="filter-tous">Tous</TabsTrigger>
-            <TabsTrigger value="ok" data-testid="filter-ok">OK</TabsTrigger>
-            <TabsTrigger value="faible" data-testid="filter-faible">Faible</TabsTrigger>
-            <TabsTrigger value="vide" data-testid="filter-vide">Vide</TabsTrigger>
+            <TabsTrigger value="en_stock" data-testid="filter-en-stock">En stock</TabsTrigger>
+            <TabsTrigger value="pas_en_stock" data-testid="filter-pas-en-stock">Pas en stock</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -219,7 +217,7 @@ export default function Stock() {
                                       {product.stockDisponible}/{product.stockActuel}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                      {formatUnite(product.unite)}
+                                      {product.unite}
                                     </div>
                                   </div>
                                 </div>
@@ -278,7 +276,7 @@ export default function Stock() {
                                           {product.stockDisponible}/{product.stockActuel}
                                         </div>
                                         <div className="text-xs text-muted-foreground">
-                                          {formatUnite(product.unite)}
+                                          {product.unite}
                                         </div>
                                       </div>
                                     </div>

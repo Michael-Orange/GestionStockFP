@@ -8,7 +8,6 @@ import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ListeItem, Product, Movement } from "@shared/schema";
-import { formatUnite } from "@/lib/utils";
 
 type ListeItemWithDetails = ListeItem & {
   product: Product | null;
@@ -167,7 +166,7 @@ export default function Liste() {
                               {item.product?.nom || "Produit inconnu"}
                             </h3>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                              <span>Quantité: {item.quantite} {formatUnite(item.product?.unite || '')}</span>
+                              <span>Quantité: {item.quantite} {item.product?.unite || ''}</span>
                               <span>•</span>
                               <span className="capitalize">
                                 {item.typeMouvement === "pret" ? "Prêt" : "Consommation"}
@@ -208,11 +207,11 @@ export default function Liste() {
                             </h3>
                             <div className="text-sm text-muted-foreground mt-1 space-y-1">
                               {item.quantite > 0 && (
-                                <p>Quantité à rendre: {item.quantite} {formatUnite(item.product?.unite || '')}</p>
+                                <p>Quantité à rendre: {item.quantite} {item.product?.unite || ''}</p>
                               )}
                               {(item.quantitePerdue || 0) > 0 && (
                                 <p className="text-destructive font-medium">
-                                  Quantité perdue: {item.quantitePerdue} {formatUnite(item.product?.unite || '')}
+                                  Quantité perdue: {item.quantitePerdue} {item.product?.unite || ''}
                                 </p>
                               )}
                             </div>
@@ -277,7 +276,7 @@ export default function Liste() {
                               {item.product?.nom || "Produit inconnu"}
                             </h3>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Quantité: {item.quantite} {formatUnite(item.product?.unite || '')}
+                              Quantité: {item.quantite} {item.product?.unite || ''}
                             </p>
                           </div>
                           <Button

@@ -9,11 +9,9 @@ interface StockBadgeProps {
 export function StockBadge({ product, showQuantity = true }: StockBadgeProps) {
   const getStockStyle = (status: ProductWithStock["stockStatus"]) => {
     switch (status) {
-      case "ok":
+      case "en_stock":
         return "bg-[hsl(var(--stock-ok))] text-white border-[hsl(var(--stock-ok))]";
-      case "faible":
-        return "bg-[hsl(var(--stock-low))] text-white border-[hsl(var(--stock-low))]";
-      case "vide":
+      case "pas_en_stock":
         return "bg-[hsl(var(--stock-empty))] text-white border-[hsl(var(--stock-empty))]";
     }
   };
@@ -21,21 +19,17 @@ export function StockBadge({ product, showQuantity = true }: StockBadgeProps) {
   const getStockText = (status: ProductWithStock["stockStatus"]) => {
     if (!showQuantity) {
       switch (status) {
-        case "ok":
-          return "Stock OK";
-        case "faible":
-          return "Stock faible";
-        case "vide":
+        case "en_stock":
+          return "En stock";
+        case "pas_en_stock":
           return "Rupture";
       }
     }
 
     switch (status) {
-      case "ok":
+      case "en_stock":
         return `${product.stockDisponible} disponible${product.stockDisponible > 1 ? "s" : ""}`;
-      case "faible":
-        return `Stock faible (${product.stockDisponible})`;
-      case "vide":
+      case "pas_en_stock":
         return "Rupture";
     }
   };
@@ -57,11 +51,9 @@ interface StockIndicatorDotProps {
 export function StockIndicatorDot({ status }: StockIndicatorDotProps) {
   const getColor = (status: ProductWithStock["stockStatus"]) => {
     switch (status) {
-      case "ok":
+      case "en_stock":
         return "bg-[hsl(var(--stock-ok))]";
-      case "faible":
-        return "bg-[hsl(var(--stock-low))]";
-      case "vide":
+      case "pas_en_stock":
         return "bg-[hsl(var(--stock-empty))]";
     }
   };

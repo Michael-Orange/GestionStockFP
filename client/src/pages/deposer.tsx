@@ -15,7 +15,6 @@ import { CreateProductForm } from "@/components/create-product-form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock, CategoryInfo, ActiveLoan } from "@/lib/types";
-import { formatUnite } from "@/lib/utils";
 
 type ViewMode = "categories" | "sous-sections" | "produits";
 
@@ -82,8 +81,8 @@ export default function Deposer() {
       queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       const totalItems = returnQuantite + lostQuantite;
       const description = lostQuantite > 0 
-        ? `${selectedLoan?.product.nom}: ${returnQuantite} ${formatUnite(selectedLoan?.product.unite || '')} à rendre, ${lostQuantite} perdu(s)`
-        : `${selectedLoan?.product.nom} × ${returnQuantite} ${formatUnite(selectedLoan?.product.unite || '')} à rendre`;
+        ? `${selectedLoan?.product.nom}: ${returnQuantite} ${selectedLoan?.product.unite || ''} à rendre, ${lostQuantite} perdu(s)`
+        : `${selectedLoan?.product.nom} × ${returnQuantite} ${selectedLoan?.product.unite || ''} à rendre`;
       toast({
         title: "Ajouté à la liste",
         description,
@@ -118,7 +117,7 @@ export default function Deposer() {
       queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
         title: "Ajouté à la liste",
-        description: `${selectedProduct?.nom} × ${depositQuantite} ${formatUnite(selectedProduct?.unite || '')}`,
+        description: `${selectedProduct?.nom} × ${depositQuantite} ${selectedProduct?.unite || ''}`,
       });
       setSelectedProduct(null);
       setDepositQuantite(1);
@@ -271,7 +270,7 @@ export default function Deposer() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Quantité empruntée:</span>
                       <span className="font-bold">
-                        {selectedLoan.quantite} {formatUnite(selectedLoan.product.unite)}
+                        {selectedLoan.quantite} {selectedLoan.product.unite}
                       </span>
                     </div>
 
@@ -351,7 +350,7 @@ export default function Deposer() {
                       </div>
                       {(returnQuantite + lostQuantite) < selectedLoan.quantite && (
                         <p className="text-sm text-muted-foreground">
-                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {formatUnite(selectedLoan.product.unite)}
+                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {selectedLoan.product.unite}
                         </p>
                       )}
                     </div>
@@ -401,7 +400,7 @@ export default function Deposer() {
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold truncate">{loan.product.nom}</h3>
                               <p className="text-sm text-muted-foreground">
-                                Quantité: {loan.quantite} {formatUnite(loan.product.unite)}
+                                Quantité: {loan.quantite} {loan.product.unite}
                               </p>
                             </div>
                             <LoanDurationBadge loan={loan} />
@@ -441,7 +440,7 @@ export default function Deposer() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Quantité empruntée:</span>
                       <span className="font-bold">
-                        {selectedLoan.quantite} {formatUnite(selectedLoan.product.unite)}
+                        {selectedLoan.quantite} {selectedLoan.product.unite}
                       </span>
                     </div>
 
@@ -521,7 +520,7 @@ export default function Deposer() {
                       </div>
                       {(returnQuantite + lostQuantite) < selectedLoan.quantite && (
                         <p className="text-sm text-muted-foreground">
-                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {formatUnite(selectedLoan.product.unite)}
+                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {selectedLoan.product.unite}
                         </p>
                       )}
                     </div>
@@ -571,7 +570,7 @@ export default function Deposer() {
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold truncate">{loan.product.nom}</h3>
                               <p className="text-sm text-muted-foreground">
-                                Par: {loan.user?.nom} · {loan.quantite} {formatUnite(loan.product.unite)}
+                                Par: {loan.user?.nom} · {loan.quantite} {loan.product.unite}
                               </p>
                             </div>
                             <LoanDurationBadge loan={loan} />
@@ -628,7 +627,7 @@ export default function Deposer() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="quantite-deposit">Quantité à ajouter ({formatUnite(selectedProduct.unite)})</Label>
+                      <Label htmlFor="quantite-deposit">Quantité à ajouter ({selectedProduct.unite})</Label>
                       <div className="flex items-center gap-3">
                         <Button
                           variant="outline"
@@ -658,7 +657,7 @@ export default function Deposer() {
                         </Button>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Nouveau stock: {selectedProduct.stockActuel + depositQuantite} {formatUnite(selectedProduct.unite)}
+                        Nouveau stock: {selectedProduct.stockActuel + depositQuantite} {selectedProduct.unite}
                       </p>
                     </div>
 
@@ -738,7 +737,7 @@ export default function Deposer() {
                             <h3 className="font-semibold truncate">
                               {product.estTemplate ? `Nouvelle ${product.nom}` : product.nom}
                             </h3>
-                            <p className="text-sm text-muted-foreground">{formatUnite(product.unite)}</p>
+                            <p className="text-sm text-muted-foreground">{product.unite}</p>
                           </div>
                           <div className="text-right">
                             <div className="font-bold">{product.stockActuel}</div>

@@ -30,15 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to enrich product with stock status
   const enrichProductWithStock = async (product: any) => {
     const stockDisponible = await calculateAvailableStock(product.id, product.stockActuel);
-    let stockStatus: "ok" | "faible" | "vide";
-    
-    if (stockDisponible === 0) {
-      stockStatus = "vide";
-    } else if (stockDisponible <= product.stockMinimum) {
-      stockStatus = "faible";
-    } else {
-      stockStatus = "ok";
-    }
+    const stockStatus: "en_stock" | "pas_en_stock" = stockDisponible > 0 ? "en_stock" : "pas_en_stock";
 
     return {
       ...product,
@@ -954,9 +946,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const emailHtml = createValidationPanierEmail(validationData);
+      
+      // Déterminer les destinataires selon l'utilisateur
+      // Papa (5), Cheikh (3), Fatou (4) → Marine + Michael + Fatou
+      // Marine (1), Michael (2) → Marine + Michael uniquement
+      const recipients = ['marine@filtreplante.com', 'michael@filtreplante.com'];
+      if (userId === 3 || userId === 4 || userId === 5) {
+        recipients.push('fatou@filtreplante.com');
+      }
+      
       await sendEmail(storage, {
         type: 'validation_panier',
-        to: ['marine@filtreplante.com', 'michael@filtreplante.com'],
+        to: recipients,
         subject: `[STOCK] Session de ${validationData.userName} - ${validationData.date}`,
         html: emailHtml,
       });

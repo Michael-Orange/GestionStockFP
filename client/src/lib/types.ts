@@ -3,7 +3,7 @@ import type { Product, Movement, User, Alert } from "@shared/schema";
 // Types étendus pour l'interface
 export interface ProductWithStock extends Product {
   stockDisponible: number;
-  stockStatus: "ok" | "faible" | "vide";
+  stockStatus: "en_stock" | "pas_en_stock";
 }
 
 export interface ActiveLoan extends Movement {
@@ -20,7 +20,7 @@ export interface CategoryInfo {
 }
 
 export interface StockFilter {
-  statut: "tous" | "ok" | "faible" | "vide";
+  statut: "tous" | "en_stock" | "pas_en_stock";
   categorie?: string;
   sousSection?: string;
   recherche?: string;
