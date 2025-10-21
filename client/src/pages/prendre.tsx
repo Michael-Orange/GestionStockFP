@@ -153,6 +153,11 @@ export default function Prendre() {
 
   const sousSections = selectedCategorie
     ? [...new Set(products.filter((p) => p.categorie === selectedCategorie).map((p) => p.sousSection))]
+        .sort((a, b) => {
+          if (a === "Tous") return -1;
+          if (b === "Tous") return 1;
+          return a.localeCompare(b);
+        })
     : [];
 
   // Auto-select movement type based on product restrictions
