@@ -211,6 +211,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsed = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(parsed);
       
+      // Auto-create chute product for Tubes & Tuyaux
+      if (parsed.categorie === "Tubes & Tuyaux") {
+        const chuteData = {
+          ...parsed,
+          nom: `${parsed.nom} (Chute)`,
+          unite: "Chute > 50cm (unités)",
+          stockActuel: 0,
+        };
+        await storage.createProduct(chuteData);
+      }
+      
       // Send email if created by non-admin user (not Michael=3 and not Marine=1)
       if (parsed.creePar && parsed.creePar !== 3 && parsed.creePar !== 1) {
         const creator = await storage.getUser(parsed.creePar);
@@ -788,15 +799,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Produit non trouvé pour item ${item.id}`);
           }
 
+          let targetProductId = product.id;
+          
+          // Handle Géomembrane deposits with dimensions
+          if (product.sousSection === "Géomembranes" && item.longueur && item.largeur) {
+            // Normalize dimensions (smaller first)
+            const minDim = Math.min(item.longueur, item.largeur);
+            const maxDim = Math.max(item.longueur, item.largeur);
+            const dimensionSuffix = `${minDim}mx${maxDim}m`;
+            
+            // Generate product name (remove " (Template)" if present)
+            const baseName = product.nom.replace(' (Template)', '').trim();
+            const variantName = `${baseName} ${dimensionSuffix}`;
+            
+            // Check if variant already exists
+            const allProducts = await storage.getAllProducts();
+            let variantProduct = allProducts.find(p => 
+              p.nom === variantName && 
+              p.categorie === product.categorie &&
+              p.sousSection === product.sousSection
+            );
+            
+            // Create variant if it doesn't exist
+            if (!variantProduct) {
+              variantProduct = await storage.createProduct({
+                nom: variantName,
+                categorie: product.categorie,
+                sousSection: product.sousSection,
+                unite: product.unite,
+                stockActuel: 0,
+                stockMinimum: 0,
+                typesMouvementsAutorises: product.typesMouvementsAutorises,
+                statut: "valide", // Auto-validated
+                creePar: userId,
+                longueur: minDim,
+                largeur: maxDim,
+                estTemplate: false,
+              });
+            }
+            
+            targetProductId = variantProduct.id;
+          }
+
+          // Get current stock of target product
+          const targetProduct = await storage.getProduct(targetProductId);
+          if (!targetProduct) {
+            throw new Error(`Produit cible non trouvé`);
+          }
+
           // Update product stock
-          await storage.updateProduct(product.id, {
-            stockActuel: product.stockActuel + item.quantite,
+          await storage.updateProduct(targetProductId, {
+            stockActuel: targetProduct.stockActuel + item.quantite,
           });
 
           // Create deposit movement
           const movement = await storage.createMovement({
             utilisateurId: userId,
-            produitId: product.id,
+            produitId: targetProductId,
             quantite: item.quantite,
             type: "depot",
             statut: "termine",

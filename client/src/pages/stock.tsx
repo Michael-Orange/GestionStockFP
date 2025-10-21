@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, ChevronDown, ChevronUp } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import type { ProductWithStock } from "@/lib/types";
+import { formatUnite } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,21 +34,32 @@ export default function Stock() {
     setOpenCategories(newOpen);
   };
 
-  const filteredProducts = products.filter((p) => {
-    // Filtre par recherche
-    if (searchQuery && !p.nom.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    // Filtre par statut
-    if (statusFilter !== "tous" && p.stockStatus !== statusFilter) {
-      return false;
-    }
-    // Afficher seulement les produits validés
-    if (p.statut !== "valide") {
-      return false;
-    }
-    return true;
-  });
+  const filteredProducts = products
+    .filter((p) => {
+      // Filtrer les produits templates (invisibles)
+      if (p.estTemplate) return false;
+      
+      // Filtre par recherche
+      if (searchQuery && !p.nom.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      // Filtre par statut
+      if (statusFilter !== "tous" && p.stockStatus !== statusFilter) {
+        return false;
+      }
+      // Afficher seulement les produits validés
+      if (p.statut !== "valide") {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      // Stock > 0 en premier, puis stock = 0
+      // Dans chaque groupe, tri alphabétique
+      if (a.stockActuel > 0 && b.stockActuel === 0) return -1;
+      if (a.stockActuel === 0 && b.stockActuel > 0) return 1;
+      return a.nom.localeCompare(b.nom);
+    });
 
   // Grouper par catégorie
   const groupedByCategory = filteredProducts.reduce((acc, product) => {
@@ -153,7 +165,7 @@ export default function Stock() {
                                 {product.stockDisponible}/{product.stockActuel}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {product.unite}
+                                {formatUnite(product.unite)}
                               </div>
                             </div>
                           </div>

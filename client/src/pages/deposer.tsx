@@ -15,6 +15,7 @@ import { CreateProductForm } from "@/components/create-product-form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock, CategoryInfo, ActiveLoan } from "@/lib/types";
+import { formatUnite } from "@/lib/utils";
 
 type ViewMode = "categories" | "sous-sections" | "produits";
 
@@ -39,6 +40,8 @@ export default function Deposer() {
   const [depositQuantite, setDepositQuantite] = useState(1);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [longueur, setLongueur] = useState<number | "">("");
+  const [largeur, setLargeur] = useState<number | "">("");
 
   if (!currentUser) {
     setLocation("/");
@@ -79,8 +82,8 @@ export default function Deposer() {
       queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       const totalItems = returnQuantite + lostQuantite;
       const description = lostQuantite > 0 
-        ? `${selectedLoan?.product.nom}: ${returnQuantite} ${selectedLoan?.product.unite} à rendre, ${lostQuantite} perdu(s)`
-        : `${selectedLoan?.product.nom} × ${returnQuantite} ${selectedLoan?.product.unite} à rendre`;
+        ? `${selectedLoan?.product.nom}: ${returnQuantite} ${formatUnite(selectedLoan?.product.unite || '')} à rendre, ${lostQuantite} perdu(s)`
+        : `${selectedLoan?.product.nom} × ${returnQuantite} ${formatUnite(selectedLoan?.product.unite || '')} à rendre`;
       toast({
         title: "Ajouté à la liste",
         description,
@@ -99,13 +102,15 @@ export default function Deposer() {
   });
 
   const addDepositToListeMutation = useMutation({
-    mutationFn: async (data: { produitId: number; quantite: number }) => {
+    mutationFn: async (data: { produitId: number; quantite: number; longueur?: number; largeur?: number }) => {
       return apiRequest("POST", "/api/liste/add", {
         userId: currentUserId,
         item: {
           typeAction: "deposer",
           produitId: data.produitId,
           quantite: data.quantite,
+          longueur: data.longueur,
+          largeur: data.largeur,
         },
       });
     },
@@ -113,10 +118,12 @@ export default function Deposer() {
       queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
         title: "Ajouté à la liste",
-        description: `${selectedProduct?.nom} × ${depositQuantite} ${selectedProduct?.unite}`,
+        description: `${selectedProduct?.nom} × ${depositQuantite} ${formatUnite(selectedProduct?.unite || '')}`,
       });
       setSelectedProduct(null);
       setDepositQuantite(1);
+      setLongueur("");
+      setLargeur("");
     },
     onError: (error: any) => {
       toast({
@@ -139,9 +146,23 @@ export default function Deposer() {
 
   const handleAddDepositToListe = () => {
     if (!selectedProduct) return;
+    
+    // Validation pour les Géomembranes
+    const isGeomembrane = selectedProduct.sousSection === "Géomembranes";
+    if (isGeomembrane && (!longueur || !largeur)) {
+      toast({
+        title: "Dimensions manquantes",
+        description: "Veuillez saisir la longueur et la largeur de la géomembrane",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     addDepositToListeMutation.mutate({
       produitId: selectedProduct.id,
       quantite: depositQuantite,
+      longueur: longueur || undefined,
+      largeur: largeur || undefined,
     });
   };
 
@@ -172,15 +193,19 @@ export default function Deposer() {
   };
 
   // Tab 3: Filter products by search query or category/sous-section
-  const filteredProducts = products.filter((p) => {
-    if (searchQuery) {
-      return p.nom.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    if (viewMode === "produits" && selectedCategorie && selectedSousSection) {
-      return p.categorie === selectedCategorie && p.sousSection === selectedSousSection;
-    }
-    return false;
-  });
+  // NOTE: Templates are NOT filtered out here because users need to select them
+  // (e.g., "Membrane PVC (Template)") to trigger dimension-based auto-product creation
+  const filteredProducts = products
+    .filter((p) => {
+      if (searchQuery) {
+        return p.nom.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      if (viewMode === "produits" && selectedCategorie && selectedSousSection) {
+        return p.categorie === selectedCategorie && p.sousSection === selectedSousSection;
+      }
+      return false;
+    })
+    .sort((a, b) => a.nom.localeCompare(b.nom));
 
   const sousSections = selectedCategorie
     ? Array.from(new Set(products.filter((p) => p.categorie === selectedCategorie).map((p) => p.sousSection)))
@@ -246,7 +271,7 @@ export default function Deposer() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Quantité empruntée:</span>
                       <span className="font-bold">
-                        {selectedLoan.quantite} {selectedLoan.product.unite}
+                        {selectedLoan.quantite} {formatUnite(selectedLoan.product.unite)}
                       </span>
                     </div>
 
@@ -326,7 +351,7 @@ export default function Deposer() {
                       </div>
                       {(returnQuantite + lostQuantite) < selectedLoan.quantite && (
                         <p className="text-sm text-muted-foreground">
-                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {selectedLoan.product.unite}
+                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {formatUnite(selectedLoan.product.unite)}
                         </p>
                       )}
                     </div>
@@ -376,7 +401,7 @@ export default function Deposer() {
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold truncate">{loan.product.nom}</h3>
                               <p className="text-sm text-muted-foreground">
-                                Quantité: {loan.quantite} {loan.product.unite}
+                                Quantité: {loan.quantite} {formatUnite(loan.product.unite)}
                               </p>
                             </div>
                             <LoanDurationBadge loan={loan} />
@@ -416,7 +441,7 @@ export default function Deposer() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Quantité empruntée:</span>
                       <span className="font-bold">
-                        {selectedLoan.quantite} {selectedLoan.product.unite}
+                        {selectedLoan.quantite} {formatUnite(selectedLoan.product.unite)}
                       </span>
                     </div>
 
@@ -496,7 +521,7 @@ export default function Deposer() {
                       </div>
                       {(returnQuantite + lostQuantite) < selectedLoan.quantite && (
                         <p className="text-sm text-muted-foreground">
-                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {selectedLoan.product.unite}
+                          Reste non comptabilisé: {selectedLoan.quantite - returnQuantite - lostQuantite} {formatUnite(selectedLoan.product.unite)}
                         </p>
                       )}
                     </div>
@@ -546,7 +571,7 @@ export default function Deposer() {
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold truncate">{loan.product.nom}</h3>
                               <p className="text-sm text-muted-foreground">
-                                Par: {loan.user?.nom} · {loan.quantite} {loan.product.unite}
+                                Par: {loan.user?.nom} · {loan.quantite} {formatUnite(loan.product.unite)}
                               </p>
                             </div>
                             <LoanDurationBadge loan={loan} />
@@ -603,7 +628,7 @@ export default function Deposer() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="quantite-deposit">Quantité à ajouter ({selectedProduct.unite})</Label>
+                      <Label htmlFor="quantite-deposit">Quantité à ajouter ({formatUnite(selectedProduct.unite)})</Label>
                       <div className="flex items-center gap-3">
                         <Button
                           variant="outline"
@@ -633,9 +658,49 @@ export default function Deposer() {
                         </Button>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Nouveau stock: {selectedProduct.stockActuel + depositQuantite} {selectedProduct.unite}
+                        Nouveau stock: {selectedProduct.stockActuel + depositQuantite} {formatUnite(selectedProduct.unite)}
                       </p>
                     </div>
+
+                    {/* Dimensions pour Géomembranes */}
+                    {selectedProduct.sousSection === "Géomembranes" && (
+                      <div className="space-y-4 border-t pt-4">
+                        <h3 className="font-semibold">Dimensions de la géomembrane</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="longueur">Longueur (m) *</Label>
+                            <Input
+                              id="longueur"
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              value={longueur}
+                              onChange={(e) => setLongueur(parseFloat(e.target.value) || "")}
+                              placeholder="Ex: 10"
+                              className="min-h-touch"
+                              data-testid="input-longueur"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="largeur">Largeur (m) *</Label>
+                            <Input
+                              id="largeur"
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              value={largeur}
+                              onChange={(e) => setLargeur(parseFloat(e.target.value) || "")}
+                              placeholder="Ex: 50"
+                              className="min-h-touch"
+                              data-testid="input-largeur"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Un produit sera créé automatiquement: "{selectedProduct.nom.replace(' (Template)', '')} {longueur && largeur ? `${Math.min(longueur, largeur)}mx${Math.max(longueur, largeur)}m` : ''}"
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -671,7 +736,7 @@ export default function Deposer() {
                           <StockIndicatorDot status={product.stockStatus} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold truncate">{product.nom}</h3>
-                            <p className="text-sm text-muted-foreground">{product.unite}</p>
+                            <p className="text-sm text-muted-foreground">{formatUnite(product.unite)}</p>
                           </div>
                           <div className="text-right">
                             <div className="font-bold">{product.stockActuel}</div>

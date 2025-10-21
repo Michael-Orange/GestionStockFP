@@ -24,6 +24,7 @@ import { CreateProductForm } from "@/components/create-product-form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock, CategoryInfo } from "@/lib/types";
+import { formatUnite } from "@/lib/utils";
 
 type ViewMode = "categories" | "sous-sections" | "produits";
 
@@ -77,7 +78,7 @@ export default function Prendre() {
       queryClient.invalidateQueries({ queryKey: ["/api/movements/active"] });
       toast({
         title: "Emprunt enregistré",
-        description: `${selectedProduct?.nom} × ${quantite} ${selectedProduct?.unite}`,
+        description: `${selectedProduct?.nom} × ${quantite} ${formatUnite(selectedProduct?.unite || '')}`,
       });
       setLocation("/");
     },
@@ -102,7 +103,7 @@ export default function Prendre() {
       queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
         title: "Ajouté à la liste",
-        description: `${selectedProduct?.nom} × ${quantite} ${selectedProduct?.unite}`,
+        description: `${selectedProduct?.nom} × ${quantite} ${formatUnite(selectedProduct?.unite || '')}`,
       });
       // Reset pour continuer à ajouter d'autres produits
       setSelectedProduct(null);
@@ -136,15 +137,20 @@ export default function Prendre() {
     },
   });
 
-  const filteredProducts = products.filter((p) => {
-    if (searchQuery) {
-      return p.nom.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    if (viewMode === "produits" && selectedCategorie && selectedSousSection) {
-      return p.categorie === selectedCategorie && p.sousSection === selectedSousSection;
-    }
-    return true;
-  });
+  const filteredProducts = products
+    .filter((p) => {
+      // Filtrer les produits templates (invisibles)
+      if (p.estTemplate) return false;
+      
+      if (searchQuery) {
+        return p.nom.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      if (viewMode === "produits" && selectedCategorie && selectedSousSection) {
+        return p.categorie === selectedCategorie && p.sousSection === selectedSousSection;
+      }
+      return true;
+    })
+    .sort((a, b) => a.nom.localeCompare(b.nom));
 
   const sousSections = selectedCategorie
     ? [...new Set(products.filter((p) => p.categorie === selectedCategorie).map((p) => p.sousSection))]
@@ -252,7 +258,7 @@ export default function Prendre() {
 
                 {/* Quantité */}
                 <div className="space-y-2">
-                  <Label htmlFor="quantite">Quantité ({selectedProduct.unite})</Label>
+                  <Label htmlFor="quantite">Quantité ({formatUnite(selectedProduct.unite)})</Label>
                   <div className="flex items-center gap-3">
                     <Button
                       variant="outline"
@@ -372,7 +378,7 @@ export default function Prendre() {
                         <div className="font-bold">
                           {product.stockDisponible}/{product.stockActuel}
                         </div>
-                        <div className="text-xs text-muted-foreground">{product.unite}</div>
+                        <div className="text-xs text-muted-foreground">{formatUnite(product.unite)}</div>
                       </div>
                     </div>
                   </CardContent>
@@ -446,7 +452,7 @@ export default function Prendre() {
                     <StockIndicatorDot status={product.stockStatus} />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{product.nom}</h3>
-                      <p className="text-sm text-muted-foreground">{product.unite}</p>
+                      <p className="text-sm text-muted-foreground">{formatUnite(product.unite)}</p>
                     </div>
                     <div className="text-right">
                       <div className="font-bold">

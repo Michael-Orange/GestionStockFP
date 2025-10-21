@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, serial, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -30,6 +30,9 @@ export const products = pgTable("products", {
   typesMouvementsAutorises: text("types_mouvements_autorises").notNull().default("les_deux"), // "pret" | "consommation" | "les_deux"
   creePar: integer("cree_par"), // user id
   dateCreation: timestamp("date_creation").notNull().defaultNow(),
+  longueur: real("longueur"), // pour Géomembranes uniquement
+  largeur: real("largeur"), // pour Géomembranes uniquement
+  estTemplate: boolean("est_template").notNull().default(false), // true si produit template (Membrane PVC de base)
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({ 
@@ -109,6 +112,10 @@ export const listeItems = pgTable("liste_items", {
   
   quantite: integer("quantite").notNull(),
   quantitePerdue: integer("quantite_perdue").default(0), // pour typeAction="rendre", quantité perdue
+  
+  // Pour DEPOSER des Géomembranes avec dimensions
+  longueur: real("longueur"), // nullable, pour géomembranes
+  largeur: real("largeur"), // nullable, pour géomembranes
 });
 
 export const insertListeItemSchema = createInsertSchema(listeItems).omit({ 

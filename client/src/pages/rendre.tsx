@@ -21,6 +21,7 @@ import { LoanDurationBadge } from "@/components/loan-duration-badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ActiveLoan } from "@/lib/types";
+import { formatUnite } from "@/lib/utils";
 
 export default function Rendre() {
   const [, setLocation] = useLocation();
@@ -58,7 +59,7 @@ export default function Rendre() {
       queryClient.invalidateQueries({ queryKey: ["/api/movements/active"] });
       toast({
         title: "Retour enregistré",
-        description: `${selectedLoan?.product.nom} × ${quantite} ${selectedLoan?.product.unite}`,
+        description: `${selectedLoan?.product.nom} × ${quantite} ${formatUnite(selectedLoan?.product.unite || '')}`,
       });
       setLocation("/");
     },
@@ -83,7 +84,7 @@ export default function Rendre() {
       queryClient.invalidateQueries({ queryKey: ["/api/liste", currentUserId] });
       toast({
         title: "Ajouté à la liste",
-        description: `${selectedLoan?.product.nom} × ${quantite} ${selectedLoan?.product.unite}`,
+        description: `${selectedLoan?.product.nom} × ${quantite} ${formatUnite(selectedLoan?.product.unite || '')}`,
       });
       // Reset pour continuer à ajouter d'autres retours
       setSelectedLoan(null);
@@ -187,7 +188,7 @@ export default function Rendre() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Quantité empruntée:</span>
                   <span className="font-bold">
-                    {selectedLoan.quantite} {selectedLoan.product.unite}
+                    {selectedLoan.quantite} {formatUnite(selectedLoan.product.unite)}
                   </span>
                 </div>
 
@@ -226,7 +227,7 @@ export default function Rendre() {
                   </div>
                   {quantite < selectedLoan.quantite && (
                     <p className="text-sm text-muted-foreground">
-                      Retour partiel. Reste: {selectedLoan.quantite - quantite} {selectedLoan.product.unite}
+                      Retour partiel. Reste: {selectedLoan.quantite - quantite} {formatUnite(selectedLoan.product.unite)}
                     </p>
                   )}
                 </div>
@@ -279,7 +280,7 @@ export default function Rendre() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate">{loan.product.nom}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Quantité: {loan.quantite} {loan.product.unite}
+                            Quantité: {loan.quantite} {formatUnite(loan.product.unite)}
                           </p>
                         </div>
                         <LoanDurationBadge loan={loan} />
