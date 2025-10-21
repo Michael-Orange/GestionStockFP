@@ -85,17 +85,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllProducts(): Promise<Product[]> {
-    return db.select().from(products);
+    return db.select().from(products).where(eq(products.actif, true));
   }
 
   async getProductsByStatus(statut: string): Promise<Product[]> {
-    return db.select().from(products).where(eq(products.statut, statut));
+    return db.select().from(products).where(and(eq(products.statut, statut), eq(products.actif, true)));
   }
 
   async getAllUnits(): Promise<string[]> {
     const result = await db
       .selectDistinct({ unite: products.unite })
       .from(products)
+      .where(eq(products.actif, true))
       .orderBy(products.unite);
     return result.map(r => r.unite);
   }
