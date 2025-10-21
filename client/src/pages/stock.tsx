@@ -35,13 +35,19 @@ export default function Stock() {
     setOpenCategories(newOpen);
   };
 
-  const toggleSubSection = (key: string) => {
+  const toggleSubSection = (categoryKey: string, subSectionKey: string) => {
     const newOpen = new Set(openSubSections);
-    if (newOpen.has(key)) {
-      newOpen.delete(key);
-    } else {
-      newOpen.add(key);
+    
+    // Close all subsections in this category first
+    const keysToRemove = Array.from(newOpen).filter(k => k.startsWith(`${categoryKey}-`));
+    keysToRemove.forEach(k => newOpen.delete(k));
+    
+    // Toggle the clicked subsection
+    const fullKey = `${categoryKey}-${subSectionKey}`;
+    if (!openSubSections.has(fullKey)) {
+      newOpen.add(fullKey);
     }
+    
     setOpenSubSections(newOpen);
   };
 
@@ -173,7 +179,7 @@ export default function Stock() {
                       {/* "Tous" virtual subsection - shows all products */}
                       <Collapsible
                         open={openSubSections.has(`${categorie}-Tous`)}
-                        onOpenChange={() => toggleSubSection(`${categorie}-Tous`)}
+                        onOpenChange={() => toggleSubSection(categorie, "Tous")}
                       >
                         <CollapsibleTrigger className="w-full" data-testid={`button-subsection-${categorie}-Tous`}>
                           <div className="px-4 py-3 border-b hover-elevate">
@@ -232,7 +238,7 @@ export default function Stock() {
                           <Collapsible
                             key={subSectionKey}
                             open={openSubSections.has(subSectionKey)}
-                            onOpenChange={() => toggleSubSection(subSectionKey)}
+                            onOpenChange={() => toggleSubSection(categorie, sousSection)}
                           >
                             <CollapsibleTrigger className="w-full" data-testid={`button-subsection-${subSectionKey}`}>
                               <div className="px-4 py-3 border-b hover-elevate">

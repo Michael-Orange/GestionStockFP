@@ -824,7 +824,9 @@ export default function Deposer() {
                       <div className="flex items-center gap-3">
                         <StockIndicatorDot status={product.stockStatus} />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold truncate">{product.nom}</h3>
+                          <h3 className="font-semibold truncate">
+                            {product.estTemplate ? `Nouvelle ${product.nom}` : product.nom}
+                          </h3>
                           <p className="text-sm text-muted-foreground">{formatUnite(product.unite)}</p>
                         </div>
                         <div className="text-right">
