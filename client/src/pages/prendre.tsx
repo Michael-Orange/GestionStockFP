@@ -497,7 +497,6 @@ export default function Prendre() {
               Valider ma liste
             </AlertDialogAction>
             <AlertDialogAction
-              variant="destructive"
               onClick={() => clearListeMutation.mutate()}
               disabled={clearListeMutation.isPending}
               data-testid="button-clear-list"
