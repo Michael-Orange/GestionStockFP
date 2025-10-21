@@ -826,7 +826,7 @@ export default function Deposer() {
                           <h3 className="font-semibold truncate">
                             {product.estTemplate ? `Nouvelle ${product.nom}` : product.nom}
                           </h3>
-                          <p className="text-sm text-muted-foreground">{formatUnite(product.unite)}</p>
+                          <p className="text-sm text-muted-foreground">{product.unite}</p>
                         </div>
                         <div className="text-right">
                           <div className="font-bold">{product.stockActuel}</div>
