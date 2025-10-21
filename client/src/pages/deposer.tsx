@@ -618,7 +618,7 @@ export default function Deposer() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-3">
                       <Package className="h-5 w-5" />
-                      {selectedProduct.nom}
+                      {selectedProduct.estTemplate ? `Nouvelle ${selectedProduct.nom}` : selectedProduct.nom}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -735,7 +735,9 @@ export default function Deposer() {
                         <div className="flex items-center gap-3">
                           <StockIndicatorDot status={product.stockStatus} />
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold truncate">{product.nom}</h3>
+                            <h3 className="font-semibold truncate">
+                              {product.estTemplate ? `Nouvelle ${product.nom}` : product.nom}
+                            </h3>
                             <p className="text-sm text-muted-foreground">{formatUnite(product.unite)}</p>
                           </div>
                           <div className="text-right">
@@ -823,7 +825,7 @@ export default function Deposer() {
                         <StockIndicatorDot status={product.stockStatus} />
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate">{product.nom}</h3>
-                          <p className="text-sm text-muted-foreground">{product.unite}</p>
+                          <p className="text-sm text-muted-foreground">{formatUnite(product.unite)}</p>
                         </div>
                         <div className="text-right">
                           <div className="font-bold">{product.stockActuel}</div>

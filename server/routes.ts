@@ -695,6 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TODO: Wrap all operations in a transaction for atomicity
       // Currently not transactional - if an error occurs mid-loop, partial changes persist
       const results = [];
+      const deposerProductMap = new Map<number, any>(); // Maps liste_item ID to target product for deposer actions
 
       // Process each item
       for (const item of items) {
@@ -871,7 +872,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             statut: "termine",
           });
 
-          results.push({ type: "deposer", movement });
+          // Store target product for email generation
+          deposerProductMap.set(item.id, targetProduct);
+          
+          results.push({ type: "deposer", movement, targetProduct });
         }
       }
 
@@ -936,12 +940,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           }
-        } else if (item.typeAction === "deposer" && item.product) {
-          validationData.items.deposer!.push({
-            nom: item.product.nom,
-            quantite: item.quantite,
-            unite: item.product.unite,
-          });
+        } else if (item.typeAction === "deposer") {
+          // Use the actual deposited product (could be variant) instead of the template
+          const targetProduct = deposerProductMap.get(item.id);
+          if (targetProduct) {
+            validationData.items.deposer!.push({
+              nom: targetProduct.nom,
+              quantite: item.quantite,
+              unite: targetProduct.unite,
+            });
+          }
         }
       }
 

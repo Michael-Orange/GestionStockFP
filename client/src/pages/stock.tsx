@@ -18,6 +18,7 @@ export default function Stock() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"tous" | "ok" | "faible" | "vide">("tous");
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+  const [openSubSections, setOpenSubSections] = useState<Set<string>>(new Set());
 
   // Récupérer les produits
   const { data: products = [], isLoading } = useQuery<ProductWithStock[]>({
@@ -32,6 +33,16 @@ export default function Stock() {
       newOpen.add(category);
     }
     setOpenCategories(newOpen);
+  };
+
+  const toggleSubSection = (key: string) => {
+    const newOpen = new Set(openSubSections);
+    if (newOpen.has(key)) {
+      newOpen.delete(key);
+    } else {
+      newOpen.add(key);
+    }
+    setOpenSubSections(newOpen);
   };
 
   const filteredProducts = products
@@ -61,14 +72,17 @@ export default function Stock() {
       return a.nom.localeCompare(b.nom);
     });
 
-  // Grouper par catégorie
+  // Grouper par catégorie puis par sous-section
   const groupedByCategory = filteredProducts.reduce((acc, product) => {
     if (!acc[product.categorie]) {
-      acc[product.categorie] = [];
+      acc[product.categorie] = {};
     }
-    acc[product.categorie].push(product);
+    if (!acc[product.categorie][product.sousSection]) {
+      acc[product.categorie][product.sousSection] = [];
+    }
+    acc[product.categorie][product.sousSection].push(product);
     return acc;
-  }, {} as Record<string, ProductWithStock[]>);
+  }, {} as Record<string, Record<string, ProductWithStock[]>>);
 
   const categories = Object.keys(groupedByCategory).sort();
 
@@ -117,13 +131,23 @@ export default function Stock() {
           </Card>
         ) : (
           categories.map((categorie) => {
-            const categoryProducts = groupedByCategory[categorie];
-            const isOpen = openCategories.has(categorie);
+            const sousSections = groupedByCategory[categorie];
+            const isCategoryOpen = openCategories.has(categorie);
+            
+            // Get all products for this category
+            const allCategoryProducts = Object.values(sousSections).flat();
+            
+            // Get sorted subsection names, with "Tous" first
+            const subSectionNames = Object.keys(sousSections).sort((a, b) => {
+              if (a === "Tous") return -1;
+              if (b === "Tous") return 1;
+              return a.localeCompare(b);
+            });
             
             return (
               <Collapsible
                 key={categorie}
-                open={isOpen}
+                open={isCategoryOpen}
                 onOpenChange={() => toggleCategory(categorie)}
               >
                 <Card>
@@ -131,7 +155,7 @@ export default function Stock() {
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {isOpen ? (
+                          {isCategoryOpen ? (
                             <ChevronUp className="h-5 w-5 text-muted-foreground" />
                           ) : (
                             <ChevronDown className="h-5 w-5 text-muted-foreground" />
@@ -139,38 +163,126 @@ export default function Stock() {
                           <h3 className="font-semibold text-left">{categorie}</h3>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          {categoryProducts.length} produit{categoryProducts.length > 1 ? "s" : ""}
+                          {allCategoryProducts.length} produit{allCategoryProducts.length > 1 ? "s" : ""}
                         </span>
                       </div>
                     </CardContent>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="border-t">
-                      {categoryProducts.map((product) => (
-                        <div
-                          key={product.id}
-                          className="border-b last:border-b-0 px-4 py-3 hover-elevate"
-                          data-testid={`product-${product.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <StockIndicatorDot status={product.stockStatus} />
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium truncate">{product.nom}</h4>
-                              <p className="text-xs text-muted-foreground">
-                                {product.sousSection}
-                              </p>
-                            </div>
-                            <div className="text-right space-y-1">
-                              <div className="font-bold text-sm">
-                                {product.stockDisponible}/{product.stockActuel}
+                    <div className="border-t bg-muted/20">
+                      {/* "Tous" virtual subsection - shows all products */}
+                      <Collapsible
+                        open={openSubSections.has(`${categorie}-Tous`)}
+                        onOpenChange={() => toggleSubSection(`${categorie}-Tous`)}
+                      >
+                        <CollapsibleTrigger className="w-full" data-testid={`button-subsection-${categorie}-Tous`}>
+                          <div className="px-4 py-3 border-b hover-elevate">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {openSubSections.has(`${categorie}-Tous`) ? (
+                                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <h4 className="font-medium">Tous</h4>
                               </div>
-                              <div className="text-xs text-muted-foreground">
-                                {formatUnite(product.unite)}
-                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {allCategoryProducts.length} produit{allCategoryProducts.length > 1 ? "s" : ""}
+                              </span>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="bg-background">
+                            {allCategoryProducts.map((product) => (
+                              <div
+                                key={product.id}
+                                className="border-b last:border-b-0 px-4 py-3 hover-elevate"
+                                data-testid={`product-${product.id}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <StockIndicatorDot status={product.stockStatus} />
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium truncate">{product.nom}</h4>
+                                    <p className="text-xs text-muted-foreground">
+                                      {product.sousSection}
+                                    </p>
+                                  </div>
+                                  <div className="text-right space-y-1">
+                                    <div className="font-bold text-sm">
+                                      {product.stockDisponible}/{product.stockActuel}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {formatUnite(product.unite)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                      
+                      {/* Real subsections */}
+                      {subSectionNames.filter(ss => ss !== "Tous").map((sousSection) => {
+                        const subSectionProducts = sousSections[sousSection];
+                        const subSectionKey = `${categorie}-${sousSection}`;
+                        
+                        return (
+                          <Collapsible
+                            key={subSectionKey}
+                            open={openSubSections.has(subSectionKey)}
+                            onOpenChange={() => toggleSubSection(subSectionKey)}
+                          >
+                            <CollapsibleTrigger className="w-full" data-testid={`button-subsection-${subSectionKey}`}>
+                              <div className="px-4 py-3 border-b hover-elevate">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    {openSubSections.has(subSectionKey) ? (
+                                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                    <h4 className="font-medium">{sousSection}</h4>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {subSectionProducts.length} produit{subSectionProducts.length > 1 ? "s" : ""}
+                                  </span>
+                                </div>
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="bg-background">
+                                {subSectionProducts.map((product) => (
+                                  <div
+                                    key={product.id}
+                                    className="border-b last:border-b-0 px-4 py-3 hover-elevate"
+                                    data-testid={`product-${product.id}`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <StockIndicatorDot status={product.stockStatus} />
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium truncate">{product.nom}</h4>
+                                        <p className="text-xs text-muted-foreground">
+                                          {product.sousSection}
+                                        </p>
+                                      </div>
+                                      <div className="text-right space-y-1">
+                                        <div className="font-bold text-sm">
+                                          {product.stockDisponible}/{product.stockActuel}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {formatUnite(product.unite)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        );
+                      })}
                     </div>
                   </CollapsibleContent>
                 </Card>
