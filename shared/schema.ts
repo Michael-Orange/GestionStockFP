@@ -33,6 +33,7 @@ export const products = pgTable("products", {
   longueur: real("longueur"), // pour Géomembranes uniquement
   largeur: real("largeur"), // pour Géomembranes uniquement
   estTemplate: boolean("est_template").notNull().default(false), // true si produit template (Membrane PVC de base)
+  actif: boolean("actif").notNull().default(true), // false si produit désactivé (stock=0 pour géomembranes)
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({ 
