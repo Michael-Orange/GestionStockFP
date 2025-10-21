@@ -2,11 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { insertProductSchema, insertMovementSchema, insertAlertSchema, listes, listeItems } from "@shared/schema";
+import { insertProductSchema, insertMovementSchema, insertAlertSchema, listes, listeItems, products } from "@shared/schema";
 import { parse } from "csv-parse/sync";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { sendEmail } from "./services/email-service";
 import { 
@@ -414,9 +414,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If it's consumption, update stock immediately
       if (type === "consommation") {
+        const newStock = product.stockActuel - quantite;
         await storage.updateProduct(produitId, {
-          stockActuel: product.stockActuel - quantite,
+          stockActuel: newStock,
         });
+        
+        // Désactiver géomembrane si stock=0
+        const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
+        if (isGeomembrane && newStock === 0) {
+          await storage.updateProduct(produitId, {
+            actif: false,
+          });
+        }
       }
 
       res.json(movement);
@@ -492,10 +501,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         statut: "termine",
       });
 
-      // Update product stock
-      await storage.updateProduct(produitId, {
+      // Update product stock and reactivate if inactive géomembrane
+      const updateData: any = {
         stockActuel: product.stockActuel + quantite,
-      });
+      };
+      
+      // Si le produit était inactif (géomembrane), le réactiver
+      const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
+      if (!product.actif && isGeomembrane) {
+        updateData.actif = true;
+      }
+      
+      await storage.updateProduct(produitId, updateData);
 
       res.json(movement);
     } catch (error: any) {
@@ -734,9 +751,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // If consumption, update stock immediately
           if (item.typeMouvement === "consommation") {
+            const newStock = product.stockActuel - item.quantite;
             await storage.updateProduct(product.id, {
-              stockActuel: product.stockActuel - item.quantite,
+              stockActuel: newStock,
             });
+            
+            // Désactiver géomembrane si stock=0
+            const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
+            if (isGeomembrane && newStock === 0) {
+              await storage.updateProduct(product.id, {
+                actif: false,
+              });
+            }
           }
 
           results.push({ type: "prendre", movement });
@@ -780,9 +806,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (item.quantitePerdue && item.quantitePerdue > 0) {
             const product = await storage.getProduct(movement.produitId);
             if (product) {
+              const newStock = product.stockActuel - item.quantitePerdue;
               await storage.updateProduct(movement.produitId, {
-                stockActuel: product.stockActuel - item.quantitePerdue,
+                stockActuel: newStock,
               });
+              
+              // Désactiver géomembrane si stock=0
+              const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
+              if (isGeomembrane && newStock === 0) {
+                await storage.updateProduct(movement.produitId, {
+                  actif: false,
+                });
+              }
             }
           }
 
@@ -815,16 +850,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const baseName = product.nom.replace(' (Template)', '').trim();
             const variantName = `${baseName} ${dimensionSuffix}`;
             
-            // Check if variant already exists
-            const allProducts = await storage.getAllProducts();
-            let variantProduct = allProducts.find(p => 
-              p.nom === variantName && 
-              p.categorie === product.categorie &&
-              p.sousSection === product.sousSection
-            );
+            // Check if variant already exists (including inactive products)
+            const [existingVariant] = await db
+              .select()
+              .from(products)
+              .where(
+                and(
+                  eq(products.nom, variantName),
+                  eq(products.categorie, product.categorie),
+                  eq(products.sousSection, product.sousSection)
+                )
+              )
+              .limit(1);
             
-            // Create variant if it doesn't exist
-            if (!variantProduct) {
+            let variantProduct;
+            if (existingVariant) {
+              // Produit trouvé (actif ou inactif)
+              variantProduct = existingVariant;
+              
+              // Si inactif, réactiver
+              if (!existingVariant.actif) {
+                variantProduct = await storage.updateProduct(existingVariant.id, {
+                  actif: true,
+                });
+              }
+            } else {
+              // Créer nouveau variant
               variantProduct = await storage.createProduct({
                 nom: variantName,
                 categorie: product.categorie,
@@ -850,10 +901,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Produit cible non trouvé`);
           }
 
-          // Update product stock
-          await storage.updateProduct(targetProductId, {
+          // Update product stock and reactivate if inactive
+          const updateData: any = {
             stockActuel: targetProduct.stockActuel + item.quantite,
-          });
+          };
+          
+          // Si le produit était inactif (géomembrane), le réactiver
+          if (!targetProduct.actif && targetProduct.longueur && targetProduct.largeur && !targetProduct.estTemplate) {
+            updateData.actif = true;
+          }
+          
+          await storage.updateProduct(targetProductId, updateData);
 
           // Create deposit movement
           const movement = await storage.createMovement({
