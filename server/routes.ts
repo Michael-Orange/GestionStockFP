@@ -210,8 +210,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsed = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(parsed);
       
-      // Auto-create chute product for Tubes & Tuyaux
-      if (parsed.categorie === "Tubes & Tuyaux") {
+      // Auto-create chute product for Tubes & tuyaux
+      if (parsed.sousSection === "Tubes & tuyaux") {
         const chuteData = {
           ...parsed,
           nom: `${parsed.nom} (Chute)`,
