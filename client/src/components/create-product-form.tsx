@@ -37,7 +37,7 @@ export function CreateProductForm({
   const [newSousSectionInput, setNewSousSectionInput] = useState("");
   const [newProductUnite, setNewProductUnite] = useState("");
   const [newUniteInput, setNewUniteInput] = useState("");
-  const [newProductQuantite, setNewProductQuantite] = useState(1);
+  const [newProductQuantite, setNewProductQuantite] = useState(0);
 
   // Récupérer les catégories
   const { data: categories = [] } = useQuery<CategoryInfo[]>({
@@ -211,9 +211,9 @@ export function CreateProductForm({
             <Input
               id="quantiteInitiale"
               type="number"
-              min="1"
+              min="0"
               value={newProductQuantite}
-              onChange={(e) => setNewProductQuantite(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => setNewProductQuantite(Math.max(0, parseInt(e.target.value) || 0))}
               className="min-h-touch"
               data-testid="input-initial-quantity"
             />
