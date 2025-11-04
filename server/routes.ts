@@ -212,10 +212,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Auto-create chute product for Tubes & tuyaux
       if (parsed.sousSection === "Tubes & tuyaux") {
+        // Determine chute unit based on product type
+        const isJR = parsed.nom.startsWith("JR -");
+        const chuteUnit = isJR ? "Chute > 20m (unités)" : "Chute > 50cm (unités)";
+        
         const chuteData = {
           ...parsed,
           nom: `${parsed.nom} (Chute)`,
-          unite: "Chute > 50cm (unités)",
+          unite: chuteUnit,
           stockActuel: 0,
         };
         await storage.createProduct(chuteData);
