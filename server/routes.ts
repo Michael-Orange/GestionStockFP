@@ -210,19 +210,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsed = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(parsed);
       
-      // Auto-create chute product for Tubes & tuyaux
+      // Auto-create variants for Tubes & tuyaux
       if (parsed.sousSection === "Tubes & tuyaux") {
-        // Determine chute unit based on product type
         const isJR = parsed.nom.startsWith("JR -");
-        const chuteUnit = isJR ? "Chute > 20m (unités)" : "Chute > 50cm (unités)";
         
-        const chuteData = {
-          ...parsed,
-          nom: `${parsed.nom} (Chute)`,
-          unite: chuteUnit,
-          stockActuel: 0,
-        };
-        await storage.createProduct(chuteData);
+        if (isJR) {
+          // For JR products, create 3 additional products:
+          // 1. Rouleau de 50m
+          const rouleau50Data = {
+            ...parsed,
+            nom: `${parsed.nom} (Rouleau de 50m)`,
+            unite: "Rouleau de 50m (unités)",
+            stockActuel: 0,
+          };
+          await storage.createProduct(rouleau50Data);
+          
+          // 2. Template Rouleau partiellement utilisé
+          const templateData = {
+            ...parsed,
+            nom: `${parsed.nom} (Rouleau partiellement utilisé)`,
+            unite: "unité(s)",
+            stockActuel: 0,
+            estTemplate: true,
+          };
+          await storage.createProduct(templateData);
+          
+          // 3. Chute > 3m
+          const chuteData = {
+            ...parsed,
+            nom: `${parsed.nom} (Chute)`,
+            unite: "Chute > 3m (unités)",
+            stockActuel: 0,
+          };
+          await storage.createProduct(chuteData);
+        } else {
+          // For PRESSION and EVAC products, create only chute with > 50cm
+          const chuteData = {
+            ...parsed,
+            nom: `${parsed.nom} (Chute)`,
+            unite: "Chute > 50cm (unités)",
+            stockActuel: 0,
+          };
+          await storage.createProduct(chuteData);
+        }
       }
       
       // Send email if created by non-admin user (not Michael=3 and not Marine=1)
@@ -430,9 +460,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stockActuel: newStock,
         });
         
-        // Désactiver géomembrane si stock=0
+        // Désactiver géomembrane ou JR variant si stock=0
         const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
-        if (isGeomembrane && newStock === 0) {
+        const isJRVariant = product.longueur && !product.largeur && product.nom.startsWith("JR -") && !product.estTemplate;
+        if ((isGeomembrane || isJRVariant) && newStock === 0) {
           await storage.updateProduct(produitId, {
             actif: false,
           });
@@ -517,9 +548,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stockActuel: product.stockActuel + quantite,
       };
       
-      // Si le produit était inactif (géomembrane), le réactiver
+      // Si le produit était inactif (géomembrane ou JR variant), le réactiver
       const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
-      if (!product.actif && isGeomembrane) {
+      const isJRVariant = product.longueur && !product.largeur && product.nom.startsWith("JR -") && !product.estTemplate;
+      if (!product.actif && (isGeomembrane || isJRVariant)) {
         updateData.actif = true;
       }
       
@@ -767,9 +799,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               stockActuel: newStock,
             });
             
-            // Désactiver géomembrane si stock=0
+            // Désactiver géomembrane ou JR variant si stock=0
             const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
-            if (isGeomembrane && newStock === 0) {
+            const isJRVariant = product.longueur && !product.largeur && product.nom.startsWith("JR -") && !product.estTemplate;
+            if ((isGeomembrane || isJRVariant) && newStock === 0) {
               await storage.updateProduct(product.id, {
                 actif: false,
               });
@@ -822,9 +855,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 stockActuel: newStock,
               });
               
-              // Désactiver géomembrane si stock=0
+              // Désactiver géomembrane ou JR variant si stock=0
               const isGeomembrane = product.longueur && product.largeur && !product.estTemplate;
-              if (isGeomembrane && newStock === 0) {
+              const isJRVariant = product.longueur && !product.largeur && product.nom.startsWith("JR -") && !product.estTemplate;
+              if ((isGeomembrane || isJRVariant) && newStock === 0) {
                 await storage.updateProduct(movement.produitId, {
                   actif: false,
                 });
@@ -905,6 +939,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             targetProductId = variantProduct.id;
           }
+          
+          // Handle JR "Rouleau partiellement utilisé" deposits with longueur
+          if (product.estTemplate && product.nom.includes("Rouleau partiellement utilisé") && product.nom.startsWith("JR -") && item.longueur) {
+            console.error(">>> ENTERING JR VARIANT CREATION LOGIC");
+            
+            const longueurValue = item.longueur;
+            const dimensionSuffix = `(${longueurValue}m)`;
+            
+            // Generate product name: remove "(Rouleau partiellement utilisé)" and add dimension
+            const baseName = product.nom.replace(' (Rouleau partiellement utilisé)', '').trim();
+            const variantName = `${baseName} ${dimensionSuffix}`;
+            
+            // Check if variant already exists (including inactive products)
+            const [existingVariant] = await db
+              .select()
+              .from(products)
+              .where(
+                and(
+                  eq(products.nom, variantName),
+                  eq(products.categorie, product.categorie),
+                  eq(products.sousSection, product.sousSection)
+                )
+              )
+              .limit(1);
+            
+            let variantProduct;
+            if (existingVariant) {
+              // Produit trouvé (actif ou inactif)
+              variantProduct = existingVariant;
+              
+              // Si inactif, réactiver
+              if (!existingVariant.actif) {
+                variantProduct = await storage.updateProduct(existingVariant.id, {
+                  actif: true,
+                });
+              }
+            } else {
+              // Créer nouveau variant JR
+              variantProduct = await storage.createProduct({
+                nom: variantName,
+                categorie: product.categorie,
+                sousSection: product.sousSection,
+                unite: "unité(s)",
+                stockActuel: 0,
+                stockMinimum: 0,
+                typesMouvementsAutorises: product.typesMouvementsAutorises,
+                statut: "valide", // Auto-validated
+                creePar: userId,
+                longueur: longueurValue,
+                estTemplate: false,
+              });
+            }
+            
+            targetProductId = variantProduct.id;
+          }
 
           // Get current stock of target product
           const targetProduct = await storage.getProduct(targetProductId);
@@ -917,8 +1006,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             stockActuel: targetProduct.stockActuel + item.quantite,
           };
           
-          // Si le produit était inactif (géomembrane), le réactiver
-          if (!targetProduct.actif && targetProduct.longueur && targetProduct.largeur && !targetProduct.estTemplate) {
+          // Si le produit était inactif (géomembrane ou JR variant), le réactiver
+          const isGeomembrane = targetProduct.longueur && targetProduct.largeur && !targetProduct.estTemplate;
+          const isJRVariant = targetProduct.longueur && !targetProduct.largeur && targetProduct.nom.startsWith("JR -") && !targetProduct.estTemplate;
+          if (!targetProduct.actif && (isGeomembrane || isJRVariant)) {
             updateData.actif = true;
           }
           
