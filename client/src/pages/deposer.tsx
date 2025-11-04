@@ -157,6 +157,17 @@ export default function Deposer() {
       return;
     }
     
+    // Validation pour les JR "Rouleau partiellement utilisé"
+    const isJRTemplate = selectedProduct.estTemplate && selectedProduct.nom.includes("Rouleau partiellement utilisé");
+    if (isJRTemplate && !longueur) {
+      toast({
+        title: "Longueur manquante",
+        description: "Veuillez saisir la longueur du rouleau partiellement utilisé",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     addDepositToListeMutation.mutate({
       produitId: selectedProduct.id,
       quantite: depositQuantite,
@@ -702,6 +713,30 @@ export default function Deposer() {
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Un produit sera créé automatiquement: "{selectedProduct.nom.replace(' (Template)', '')} {longueur && largeur ? `${Math.min(longueur, largeur)}mx${Math.max(longueur, largeur)}m` : ''}"
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Longueur pour JR "Rouleau partiellement utilisé" */}
+                    {selectedProduct.estTemplate && selectedProduct.nom.includes("Rouleau partiellement utilisé") && (
+                      <div className="space-y-4 border-t pt-4">
+                        <h3 className="font-semibold">Longueur du rouleau</h3>
+                        <div className="space-y-2">
+                          <Label htmlFor="longueur-jr">Longueur (m) *</Label>
+                          <Input
+                            id="longueur-jr"
+                            type="number"
+                            min="0.1"
+                            step="0.1"
+                            value={longueur}
+                            onChange={(e) => setLongueur(parseFloat(e.target.value) || "")}
+                            placeholder="Ex: 37"
+                            className="min-h-touch"
+                            data-testid="input-longueur-jr"
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Un produit sera créé automatiquement: "{selectedProduct.nom.replace(' (Rouleau partiellement utilisé)', '')} {longueur ? `(${longueur}m)` : ''}"
                         </p>
                       </div>
                     )}
