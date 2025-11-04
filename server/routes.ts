@@ -215,6 +215,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const isJR = parsed.nom.startsWith("JR -");
         
         if (isJR) {
+          // Update base product name to add (Rouleau de 100m) suffix for consistency
+          const updatedName = `${parsed.nom} (Rouleau de 100m)`;
+          await storage.updateProduct(product.id, {
+            nom: updatedName,
+          });
+          // Update product object with new name for subsequent use (emails, alerts, response)
+          product.nom = updatedName;
+          
           // For JR products, create 3 additional products:
           // 1. Rouleau de 50m
           const rouleau50Data = {
