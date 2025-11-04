@@ -228,7 +228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const rouleau50Data = {
             ...parsed,
             nom: `${parsed.nom} (Rouleau de 50m)`,
-            unite: "Rouleau de 50m (unités)",
+            unite: "Rouleau de 50m",
             stockActuel: 0,
           };
           await storage.createProduct(rouleau50Data);
@@ -247,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const chuteData = {
             ...parsed,
             nom: `${parsed.nom} (Chute)`,
-            unite: "Chute > 3m (et inf. à 10m) (unités)",
+            unite: "Chute > 3m (et inf. à 10m)",
             stockActuel: 0,
           };
           await storage.createProduct(chuteData);
@@ -256,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const chuteData = {
             ...parsed,
             nom: `${parsed.nom} (Chute)`,
-            unite: "Chute > 50cm (unités)",
+            unite: "Chute > 50cm",
             stockActuel: 0,
           };
           await storage.createProduct(chuteData);
