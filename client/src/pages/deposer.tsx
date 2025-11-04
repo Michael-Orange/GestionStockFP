@@ -159,13 +159,31 @@ export default function Deposer() {
     
     // Validation pour les JR "Rouleau partiellement utilisé"
     const isJRTemplate = selectedProduct.estTemplate && selectedProduct.nom.includes("Rouleau partiellement utilisé");
-    if (isJRTemplate && !longueur) {
-      toast({
-        title: "Longueur manquante",
-        description: "Veuillez saisir la longueur du rouleau partiellement utilisé",
-        variant: "destructive",
-      });
-      return;
+    if (isJRTemplate) {
+      if (!longueur) {
+        toast({
+          title: "Longueur manquante",
+          description: "Veuillez saisir la longueur du rouleau partiellement utilisé",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (longueur < 10) {
+        toast({
+          title: "Longueur trop courte",
+          description: "Utilisez le produit Chute pour les longueurs inférieures à 10m",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (longueur >= 100) {
+        toast({
+          title: "Longueur trop importante",
+          description: "Un rouleau utilisé ne peut pas dépasser 100m",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     addDepositToListeMutation.mutate({

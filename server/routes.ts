@@ -235,11 +235,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
           await storage.createProduct(templateData);
           
-          // 3. Chute > 3m
+          // 3. Chute > 3m (et inf. à 10m)
           const chuteData = {
             ...parsed,
             nom: `${parsed.nom} (Chute)`,
-            unite: "Chute > 3m (unités)",
+            unite: "Chute > 3m (et inf. à 10m) (unités)",
             stockActuel: 0,
           };
           await storage.createProduct(chuteData);
@@ -694,6 +694,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/liste/add", async (req, res) => {
     try {
       const { userId, item: itemData } = req.body;
+      
+      // Validation for JR template deposits
+      if (itemData.typeAction === "deposer" && itemData.produitId) {
+        const product = await storage.getProduct(itemData.produitId);
+        if (product && product.estTemplate && product.nom.includes("Rouleau partiellement utilisé")) {
+          // Longueur is required for JR templates
+          if (!itemData.longueur) {
+            return res.status(400).json({ 
+              error: "Veuillez saisir la longueur du rouleau partiellement utilisé" 
+            });
+          }
+          
+          const longueur = parseFloat(itemData.longueur);
+          
+          // Check if longueur is a valid number
+          if (isNaN(longueur) || longueur <= 0) {
+            return res.status(400).json({ 
+              error: "La longueur doit être un nombre valide supérieur à 0" 
+            });
+          }
+          
+          if (longueur < 10) {
+            return res.status(400).json({ 
+              error: "Utilisez le produit Chute pour les longueurs inférieures à 10m" 
+            });
+          }
+          if (longueur >= 100) {
+            return res.status(400).json({ 
+              error: "Un rouleau utilisé ne peut pas dépasser 100m" 
+            });
+          }
+        }
+      }
       
       const item = await storage.addItemToListe(userId, {
         typeAction: itemData.typeAction,

@@ -275,9 +275,21 @@ export default function Liste() {
                             <h3 className="font-semibold truncate" data-testid={`text-product-${item.id}`}>
                               {item.product?.nom || "Produit inconnu"}
                             </h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Quantité: {item.quantite} {item.product?.unite || ''}
-                            </p>
+                            <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                              <p>
+                                Quantité: {item.quantite} {item.product?.unite || ''}
+                              </p>
+                              {item.longueur && item.largeur && (
+                                <p data-testid={`text-dimensions-${item.id}`}>
+                                  Dimensions: {item.longueur}m × {item.largeur}m
+                                </p>
+                              )}
+                              {item.longueur && !item.largeur && (
+                                <p data-testid={`text-longueur-${item.id}`}>
+                                  Longueur: {item.longueur}m
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <Button
                             variant="ghost"
