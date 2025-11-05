@@ -12,8 +12,10 @@ import { sendEmail } from "./services/email-service";
 import { 
   createValidationPanierEmail, 
   createNouveauProduitEmail,
+  createValidationProduitEmail,
   type ValidationPanierData,
-  type NouveauProduitData
+  type NouveauProduitData,
+  type ValidationProduitData
 } from "./services/email-templates";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -304,7 +306,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/products/:id/validate", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const { userId } = req.body;
+      
       const product = await storage.validateProduct(id);
+      
+      // Get admin name for email
+      let validatedBy = 'Administrateur';
+      if (userId) {
+        const admin = await storage.getUser(userId);
+        if (admin) {
+          validatedBy = admin.nom;
+        }
+      }
+      
+      // Send email to notify team that product is now validated and available
+      const emailData: ValidationProduitData = {
+        productName: product.nom,
+        category: product.categorie,
+        subSection: product.sousSection,
+        validatedBy,
+        date: new Date().toLocaleString('fr-FR'),
+      };
+      
+      const emailHtml = createValidationProduitEmail(emailData);
+      await sendEmail(storage, {
+        type: 'validation_produit',
+        to: ['marine@filtreplante.com', 'michael@filtreplante.com', 'fatou@filtreplante.com'],
+        subject: `[STOCK] Produit validé - ${product.nom}`,
+        html: emailHtml,
+      });
+      
       res.json(product);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

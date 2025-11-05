@@ -42,7 +42,9 @@ export default function Admin() {
   // Mutation pour valider un produit
   const validateMutation = useMutation({
     mutationFn: async (productId: number) => {
-      return apiRequest("POST", `/api/products/${productId}/validate`, {});
+      return apiRequest("POST", `/api/products/${productId}/validate`, {
+        userId: currentUser?.id,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
