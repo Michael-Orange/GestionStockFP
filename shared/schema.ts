@@ -32,6 +32,7 @@ export const products = pgTable("products", {
   dateCreation: timestamp("date_creation").notNull().defaultNow(),
   longueur: real("longueur"), // pour Géomembranes uniquement
   largeur: real("largeur"), // pour Géomembranes uniquement
+  couleur: text("couleur"), // pour Géomembranes uniquement (Vert, Blanc, Marron, Noir, Autre)
   estTemplate: boolean("est_template").notNull().default(false), // true si produit template (Membrane PVC de base)
   actif: boolean("actif").notNull().default(true), // false si produit désactivé (stock=0 pour géomembranes)
 });
@@ -117,6 +118,7 @@ export const listeItems = pgTable("liste_items", {
   // Pour DEPOSER des Géomembranes avec dimensions
   longueur: real("longueur"), // nullable, pour géomembranes
   largeur: real("largeur"), // nullable, pour géomembranes
+  couleur: text("couleur"), // nullable, pour géomembranes (Vert, Blanc, Marron, Noir, Autre)
 });
 
 export const insertListeItemSchema = createInsertSchema(listeItems).omit({ 
