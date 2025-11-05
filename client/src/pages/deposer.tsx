@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, Plus, Minus, Search } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import { LoanDurationBadge } from "@/components/loan-duration-badge";
@@ -41,6 +42,8 @@ export default function Deposer() {
   const [searchQuery, setSearchQuery] = useState("");
   const [longueur, setLongueur] = useState<number | "">("");
   const [largeur, setLargeur] = useState<number | "">("");
+  const [couleur, setCouleur] = useState("");
+  const [couleurAutre, setCouleurAutre] = useState("");
 
   if (!currentUser) {
     setLocation("/");
@@ -101,7 +104,7 @@ export default function Deposer() {
   });
 
   const addDepositToListeMutation = useMutation({
-    mutationFn: async (data: { produitId: number; quantite: number; longueur?: number; largeur?: number }) => {
+    mutationFn: async (data: { produitId: number; quantite: number; longueur?: number; largeur?: number; couleur?: string }) => {
       return apiRequest("POST", "/api/liste/add", {
         userId: currentUserId,
         item: {
@@ -110,6 +113,7 @@ export default function Deposer() {
           quantite: data.quantite,
           longueur: data.longueur,
           largeur: data.largeur,
+          couleur: data.couleur,
         },
       });
     },
@@ -123,6 +127,8 @@ export default function Deposer() {
       setDepositQuantite(1);
       setLongueur("");
       setLargeur("");
+      setCouleur("");
+      setCouleurAutre("");
     },
     onError: (error: any) => {
       toast({
@@ -157,6 +163,24 @@ export default function Deposer() {
       return;
     }
     
+    if (isGeomembrane && !couleur) {
+      toast({
+        title: "Couleur manquante",
+        description: "Veuillez sélectionner la couleur de la géomembrane",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isGeomembrane && couleur === "Autre" && !couleurAutre.trim()) {
+      toast({
+        title: "Couleur manquante",
+        description: "Veuillez préciser la couleur",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Validation pour les JR "Rouleau partiellement utilisé"
     const isJRTemplate = selectedProduct.estTemplate && selectedProduct.nom.includes("Rouleau partiellement utilisé");
     if (isJRTemplate) {
@@ -186,11 +210,14 @@ export default function Deposer() {
       }
     }
     
+    const finalCouleur = couleur === "Autre" ? couleurAutre : couleur;
+    
     addDepositToListeMutation.mutate({
       produitId: selectedProduct.id,
       quantite: depositQuantite,
       longueur: longueur || undefined,
       largeur: largeur || undefined,
+      couleur: finalCouleur || undefined,
     });
   };
 
@@ -729,8 +756,40 @@ export default function Deposer() {
                             />
                           </div>
                         </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="couleur">Couleur *</Label>
+                          <Select value={couleur} onValueChange={setCouleur}>
+                            <SelectTrigger id="couleur" className="min-h-touch" data-testid="select-couleur">
+                              <SelectValue placeholder="Sélectionner une couleur" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Vert">Vert</SelectItem>
+                              <SelectItem value="Blanc">Blanc</SelectItem>
+                              <SelectItem value="Marron">Marron</SelectItem>
+                              <SelectItem value="Noir">Noir</SelectItem>
+                              <SelectItem value="Autre">Autre</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {couleur === "Autre" && (
+                          <div className="space-y-2">
+                            <Label htmlFor="couleur-autre">Préciser la couleur *</Label>
+                            <Input
+                              id="couleur-autre"
+                              type="text"
+                              value={couleurAutre}
+                              onChange={(e) => setCouleurAutre(e.target.value)}
+                              placeholder="Ex: Bleu clair"
+                              className="min-h-touch"
+                              data-testid="input-couleur-autre"
+                            />
+                          </div>
+                        )}
+                        
                         <p className="text-sm text-muted-foreground">
-                          Un produit sera créé automatiquement: "{selectedProduct.nom.replace(' (Template)', '')} {longueur && largeur ? `${Math.min(longueur, largeur)}mx${Math.max(longueur, largeur)}m` : ''}"
+                          Un produit sera créé automatiquement: "{selectedProduct.nom.replace(' (Template)', '')} {longueur && largeur && (couleur === "Autre" ? couleurAutre : couleur) ? `${Math.min(longueur, largeur)}mx${Math.max(longueur, largeur)}m - ${couleur === "Autre" ? couleurAutre : couleur}` : ''}"
                         </p>
                       </div>
                     )}
