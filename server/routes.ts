@@ -781,6 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quantitePerdue: itemData.quantitePerdue || 0,
         longueur: itemData.longueur || null, // For Géomembrane deposits
         largeur: itemData.largeur || null, // For Géomembrane deposits
+        couleur: itemData.couleur || null, // For Géomembrane deposits
       });
       
       res.json(item);
