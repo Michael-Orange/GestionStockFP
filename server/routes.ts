@@ -951,11 +951,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Debug logging for Géomembrane detection
           console.error("=== DEPOSER DEBUG ===");
           console.error("Product:", JSON.stringify({nom: product.nom, id: product.id, sousSection: product.sousSection}));
-          console.error("Item dims:", JSON.stringify({longueur: item.longueur, largeur: item.largeur}));
+          console.error("Item dims:", JSON.stringify({longueur: item.longueur, largeur: item.largeur, couleur: item.couleur}));
           console.error("Condition:", product.sousSection === "Géomembranes", "&&", !!item.longueur, "&&", !!item.largeur);
           
-          // Handle Géomembrane deposits with dimensions
-          if (product.sousSection === "Géomembranes" && item.longueur && item.largeur) {
+          // Handle Géomembrane deposits with dimensions and color
+          if (product.sousSection === "Géomembranes" && item.longueur && item.largeur && item.couleur) {
             console.error(">>> ENTERING GÉOMEMBRANE VARIANT CREATION LOGIC");
 
             // Normalize dimensions (smaller first)
@@ -965,17 +965,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Generate product name (remove " (Template)" if present)
             const baseName = product.nom.replace(' (Template)', '').trim();
-            const variantName = `${baseName} ${dimensionSuffix}`;
+            const variantName = `${baseName} ${dimensionSuffix} - ${item.couleur}`;
             
             // Check if variant already exists (including inactive products)
+            // Uniqueness: longueur × largeur × couleur
             const [existingVariant] = await db
               .select()
               .from(products)
               .where(
                 and(
-                  eq(products.nom, variantName),
                   eq(products.categorie, product.categorie),
-                  eq(products.sousSection, product.sousSection)
+                  eq(products.sousSection, product.sousSection),
+                  eq(products.longueur, minDim),
+                  eq(products.largeur, maxDim),
+                  eq(products.couleur, item.couleur)
                 )
               )
               .limit(1);
@@ -1005,6 +1008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 creePar: userId,
                 longueur: minDim,
                 largeur: maxDim,
+                couleur: item.couleur,
                 estTemplate: false,
               });
             }
