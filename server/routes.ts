@@ -537,7 +537,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quantite,
           type: "retour",
           statut: "termine",
-          dateRetourEffectif: new Date(),
         });
         
         // Update original movement quantity
@@ -548,7 +547,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Full return - mark movement as completed
         await storage.updateMovement(mouvementId, {
           statut: "termine",
-          dateRetourEffectif: new Date(),
         });
       }
 
@@ -634,13 +632,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const csvPath = join(process.cwd(), "attached_assets", "dust_output_1760788353237._1760788811965.csv");
       const csvContent = readFileSync(csvPath, "utf-8");
       
+      type CSVRecord = {
+        Catégorie: string;
+        "Sous-section": string;
+        Produit: string;
+        Unité: string;
+      };
+
       const records = parse(csvContent, {
         columns: true,
         skip_empty_lines: true,
         trim: true,
         relax_quotes: true,
         relax_column_count: true,
-      });
+      }) as CSVRecord[];
 
       let imported = 0;
       let skipped = 0;
@@ -902,7 +907,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               quantite: item.quantite,
               type: "retour",
               statut: "termine",
-              dateRetourEffectif: new Date(),
               quantitePerdue: item.quantitePerdue || 0,
             });
             
@@ -913,7 +917,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Full return
             await storage.updateMovement(movement.id, {
               statut: "termine",
-              dateRetourEffectif: new Date(),
               quantitePerdue: item.quantitePerdue || 0,
             });
           }
@@ -1133,7 +1136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fetch all return products in one query
       const returnProductsMap = new Map<number, any>();
-      for (const produitId of returnProductIds) {
+      for (const produitId of Array.from(returnProductIds)) {
         const product = await storage.getProduct(produitId);
         if (product) {
           returnProductsMap.set(produitId, product);
