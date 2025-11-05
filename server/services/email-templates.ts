@@ -328,3 +328,58 @@ export function createNouveauProduitEmail(data: NouveauProduitData): string {
   `;
 }
 
+export interface ValidationProduitData {
+  productName: string;
+  category: string;
+  subSection: string;
+  validatedBy: string;
+  date: string;
+}
+
+/**
+ * Template: Email validation produit
+ */
+export function createValidationProduitEmail(data: ValidationProduitData): string {
+  const { productName, category, subSection, validatedBy, date } = data;
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      ${baseStyles}
+    </head>
+    <body>
+      <div class="header">
+        <h1>✅ Produit Validé</h1>
+        <p style="margin: 5px 0 0 0;">${date}</p>
+      </div>
+      <div class="content">
+        <p style="margin-top: 0;">Un nouveau produit a été validé et ajouté au stock:</p>
+        <div class="section">
+          <div class="item">
+            <div class="item-name">Nom du produit</div>
+            <div class="item-details">${productName}</div>
+          </div>
+          <div class="item">
+            <div class="item-name">Catégorie</div>
+            <div class="item-details">${category} › ${subSection}</div>
+          </div>
+          <div class="item">
+            <div class="item-name">Validé par</div>
+            <div class="item-details">${validatedBy}</div>
+          </div>
+        </div>
+        <p style="color: #157a70; font-weight: 600;">✅ Le produit est maintenant disponible dans l'application</p>
+      </div>
+      <div class="footer">
+        <strong>FiltrePlante</strong> - Gestion de Stock<br>
+        <a href="https://stock-filtreplante.replit.app" class="button-link">Accéder à l'application</a><br>
+        <span style="font-size: 12px;">Cet email est généré automatiquement, ne pas répondre</span>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
