@@ -13,9 +13,11 @@ import {
   createValidationPanierEmail, 
   createNouveauProduitEmail,
   createValidationProduitEmail,
+  createRefusProduitEmail,
   type ValidationPanierData,
   type NouveauProduitData,
-  type ValidationProduitData
+  type ValidationProduitData,
+  type RefusProduitData
 } from "./services/email-templates";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -357,6 +359,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/products/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const { userId } = req.body;
+      
+      // Get product info before deletion
+      const product = await storage.getProduct(id);
+      
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      // Get creator name for email
+      let createdBy = 'Utilisateur inconnu';
+      if (product.creePar) {
+        const creator = await storage.getUser(product.creePar);
+        if (creator) {
+          createdBy = creator.nom;
+        }
+      }
+      
+      // Get admin name for email
+      let refusedBy = 'Administrateur';
+      if (userId) {
+        const admin = await storage.getUser(userId);
+        if (admin) {
+          refusedBy = admin.nom;
+        }
+      }
+      
+      // Send email to notify team that product was refused
+      const emailData: RefusProduitData = {
+        productName: product.nom,
+        category: product.categorie,
+        subSection: product.sousSection,
+        createdBy,
+        refusedBy,
+        date: new Date().toLocaleString('fr-FR'),
+      };
+      
+      const emailHtml = createRefusProduitEmail(emailData);
+      await sendEmail(storage, {
+        type: 'refus_produit',
+        to: ['marine@filtreplante.com', 'michael@filtreplante.com'],
+        subject: `[STOCK] Produit refusé - ${product.nom}`,
+        html: emailHtml,
+      });
+      
+      // Delete the product
       await storage.deleteProduct(id);
       res.json({ success: true });
     } catch (error: any) {

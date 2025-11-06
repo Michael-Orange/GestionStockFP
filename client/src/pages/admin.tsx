@@ -92,14 +92,14 @@ export default function Admin() {
   // Mutation pour supprimer un produit
   const deleteMutation = useMutation({
     mutationFn: async (productId: number) => {
-      return apiRequest("DELETE", `/api/products/${productId}`, {});
+      return apiRequest("DELETE", `/api/products/${productId}`, { userId: currentUser?.id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products/pending"] });
       toast({
-        title: "Produit supprimé",
-        description: "Le produit a été retiré de la base de données",
+        title: "Produit refusé",
+        description: "Le produit a été supprimé et une notification a été envoyée",
       });
     },
     onError: (error: any) => {

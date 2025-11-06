@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import type { DatabaseStorage } from '../storage';
-import type { InsertEmailLog } from '@/shared/schema';
+import type { InsertEmailLog } from '@shared/schema';
 
 let connectionSettings: any;
 
