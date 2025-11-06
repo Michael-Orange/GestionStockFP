@@ -768,6 +768,8 @@ export default function Deposer() {
                               <SelectItem value="Blanc">Blanc</SelectItem>
                               <SelectItem value="Marron">Marron</SelectItem>
                               <SelectItem value="Noir">Noir</SelectItem>
+                              <SelectItem value="Gris">Gris</SelectItem>
+                              <SelectItem value="Abimé">Abimé</SelectItem>
                               <SelectItem value="Autre">Autre</SelectItem>
                             </SelectContent>
                           </Select>
