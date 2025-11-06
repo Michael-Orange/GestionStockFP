@@ -383,3 +383,63 @@ export function createValidationProduitEmail(data: ValidationProduitData): strin
   `;
 }
 
+export interface RefusProduitData {
+  productName: string;
+  category: string;
+  subSection: string;
+  refusedBy: string;
+  createdBy: string;
+  date: string;
+}
+
+/**
+ * Template: Email refus produit
+ */
+export function createRefusProduitEmail(data: RefusProduitData): string {
+  const { productName, category, subSection, refusedBy, createdBy, date } = data;
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      ${baseStyles}
+    </head>
+    <body>
+      <div class="header" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);">
+        <h1>❌ Produit Refusé</h1>
+        <p style="margin: 5px 0 0 0;">${date}</p>
+      </div>
+      <div class="content">
+        <p style="margin-top: 0;">Un produit en attente a été refusé et supprimé de la base de données:</p>
+        <div class="section" style="border-left: 3px solid #dc2626;">
+          <div class="item">
+            <div class="item-name">Nom du produit</div>
+            <div class="item-details">${productName}</div>
+          </div>
+          <div class="item">
+            <div class="item-name">Catégorie</div>
+            <div class="item-details">${category} › ${subSection}</div>
+          </div>
+          <div class="item">
+            <div class="item-name">Créé par</div>
+            <div class="item-details">${createdBy}</div>
+          </div>
+          <div class="item">
+            <div class="item-name">Refusé par</div>
+            <div class="item-details">${refusedBy}</div>
+          </div>
+        </div>
+        <p style="color: #dc2626; font-weight: 600;">❌ Le produit a été supprimé de la base de données</p>
+      </div>
+      <div class="footer">
+        <strong>FiltrePlante</strong> - Gestion de Stock<br>
+        <a href="https://stock-filtreplante.replit.app" class="button-link">Accéder à l'application</a><br>
+        <span style="font-size: 12px;">Cet email est généré automatiquement, ne pas répondre</span>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
