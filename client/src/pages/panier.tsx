@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, ShoppingCart, CheckCircle2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getNetworkErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { ListeItem, Product, Movement } from "@shared/schema";
+import { type ListeItem, type Product, type Movement } from "@shared/schema";
 
 type ListeItemWithDetails = ListeItem & {
   product: Product | null;
@@ -34,10 +34,7 @@ export default function Liste() {
   // Remove item mutation
   const removeItemMutation = useMutation({
     mutationFn: async (itemId: number) => {
-      const response = await fetch(`/api/liste/item/${itemId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error(await response.text());
+      const response = await apiRequest("DELETE", `/api/liste/item/${itemId}`);
       return response.json();
     },
     onSuccess: () => {
@@ -50,7 +47,7 @@ export default function Liste() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de retirer l'article",
+        description: getNetworkErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -59,10 +56,7 @@ export default function Liste() {
   // Clear liste mutation
   const clearListeMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/liste/${currentUserId}/clear`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error(await response.text());
+      const response = await apiRequest("DELETE", `/api/liste/${currentUserId}/clear`);
       return response.json();
     },
     onSuccess: () => {
@@ -75,7 +69,7 @@ export default function Liste() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de vider la liste",
+        description: getNetworkErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -102,7 +96,7 @@ export default function Liste() {
     onError: (error: any) => {
       toast({
         title: "Erreur de validation",
-        description: error.message || "Impossible de valider la liste",
+        description: getNetworkErrorMessage(error),
         variant: "destructive",
       });
     },

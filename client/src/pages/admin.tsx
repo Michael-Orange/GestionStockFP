@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Edit, AlertTriangle, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getNetworkErrorMessage } from "@/lib/queryClient";
 import type { ProductWithStock } from "@/lib/types";
 import {
   Dialog,
@@ -57,7 +57,7 @@ export default function Admin() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de valider le produit",
+        description: getNetworkErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -83,7 +83,7 @@ export default function Admin() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de modifier le produit",
+        description: getNetworkErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -105,7 +105,7 @@ export default function Admin() {
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de supprimer le produit",
+        description: getNetworkErrorMessage(error),
         variant: "destructive",
       });
     },
