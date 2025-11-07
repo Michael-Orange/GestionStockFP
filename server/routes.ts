@@ -267,8 +267,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Send email if created by non-admin user (not Michael=3 and not Marine=1)
-      if (parsed.creePar && parsed.creePar !== 3 && parsed.creePar !== 1) {
+      // Send email for new product creation
+      if (parsed.creePar) {
         const creator = await storage.getUser(parsed.creePar);
         const emailData: NouveauProduitData = {
           productName: product.nom,
@@ -281,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const emailHtml = createNouveauProduitEmail(emailData);
         await sendEmail(storage, {
           type: 'nouveau_produit',
-          to: ['marine@filtreplante.com', 'michael@filtreplante.com'],
+          to: ['team@filtreplante.com'],
           subject: `[STOCK] Nouveau produit en attente - ${product.nom}`,
           html: emailHtml,
         });
@@ -333,7 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailHtml = createValidationProduitEmail(emailData);
       await sendEmail(storage, {
         type: 'validation_produit',
-        to: ['marine@filtreplante.com', 'michael@filtreplante.com', 'fatou@filtreplante.com'],
+        to: ['team@filtreplante.com'],
         subject: `[STOCK] Produit validé - ${product.nom}`,
         html: emailHtml,
       });
@@ -399,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailHtml = createRefusProduitEmail(emailData);
       await sendEmail(storage, {
         type: 'refus_produit',
-        to: ['marine@filtreplante.com', 'michael@filtreplante.com'],
+        to: ['team@filtreplante.com'],
         subject: `[STOCK] Produit refusé - ${product.nom}`,
         html: emailHtml,
       });
@@ -1235,17 +1235,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const emailHtml = createValidationPanierEmail(validationData);
       
-      // Déterminer les destinataires selon l'utilisateur
-      // Papa (5), Cheikh (3), Fatou (4) → Marine + Michael + Fatou
-      // Marine (1), Michael (2) → Marine + Michael uniquement
-      const recipients = ['marine@filtreplante.com', 'michael@filtreplante.com'];
-      if (userId === 3 || userId === 4 || userId === 5) {
-        recipients.push('fatou@filtreplante.com');
-      }
-      
       await sendEmail(storage, {
         type: 'validation_panier',
-        to: recipients,
+        to: ['team@filtreplante.com'],
         subject: `[STOCK] Session de ${validationData.userName} - ${validationData.date}`,
         html: emailHtml,
       });
