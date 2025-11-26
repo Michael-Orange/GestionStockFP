@@ -1,0 +1,429 @@
+# OBJECTIF
+Phase 2/3 de refactorisation backend : Créer services métier isolés et testables, EN PARALLÈLE du code existant.
+
+# CONTEXTE
+Phase 1 terminée : Middlewares en place ✅
+Phase 2 : Extraction logique métier dans services
+Stratégie : Créer services SANS toucher routes.ts (validation indépendante)
+Phase 3 (future) : Migrer routes.ts pour utiliser services
+
+# PRINCIPE
+
+Créer services qui ENCAPSULENT la logique actuellement dans routes.ts
+Ne PAS modifier routes.ts maintenant
+Services utilisent storage.ts existant (abstraction DB)
+Une fois services validés → Phase 3 migrера routes
+
+# SPÉCIFICATIONS SERVICES
+
+## 1. ProductService (server/services/ProductService.ts)
+
+Responsabilités : CRUD produits, calcul stock, variants
+
+Méthodes principales :
+
+getAllProducts(filters?: {categorie?: string, sousSection?: string, actifOnly?: boolean})
+- Utilise storage.getProducts() avec filtres
+- Retourne Product[]
+
+getProductById(id: number)
+- Utilise storage.getProductById()
+- Throw Error si not found
+- Retourne Product
+
+getProductsByIds(ids: number[])
+- Batch query optimisée
+- Utilise Promise.all() avec storage.getProductById()
+- Retourne Product[]
+
+getAvailableStock(productId: number)
+- Calcule : stock initial + dépôts - prêts actifs - consommations
+- Utilise storage pour fetch mouvements
+- Implémente cache interne Map<id, {value, timestamp}>
+- TTL cache : 60 secondes
+- Méthode clearStaleCache() pour nettoyage
+- Retourne number
+
+createProduct(data: InsertProduct)
+- Validation données (nom, catégorie requis)
+- Utilise storage.createProduct()
+- Si template : valide variant data (dimensions, couleur)
+- Retourne Product créé
+
+updateProduct(id: number, data: Partial<Product>)
+- Vérifie produit existe
+- Utilise storage.updateProduct()
+- Retourne Product mis à jour
+
+deleteProduct(id: number)
+- Vérifie pas de mouvements actifs (prêts non retournés)
+- Si mouvements actifs : throw Error
+- Sinon : soft delete (isActive = false) ou hard delete selon business
+- Retourne void
+
+toggleProductStatus(id: number, isActive: boolean)
+- Change statut actif/inactif
+- Produits inactifs invisibles dans listes mais historique préservé
+- Retourne Product
+
+createFromTemplate(templateId: number, variantData: object)
+- Vérifie template existe et estTemplate = true
+- Crée nouveau produit avec données template + variantData
+- Pour géomembranes : valide longueur, largeur, couleur
+- Pour JR tubes : valide dimensions rouleaux
+- Retourne Product créé
+
+Cache interne :
+- private stockCache = new Map<number, {value: number, timestamp: number}>()
+- private CACHE_TTL = 60000 (60 secondes)
+- private clearStaleCache() : Supprime entrées > TTL
+- Appelé avant chaque getAvailableStock()
+
+## 2. MovementService (server/services/MovementService.ts)
+
+Responsabilités : Création mouvements, validation stock, historique
+
+Méthodes principales :
+
+createMovement(data: {
+  type: 'pret' | 'consommation' | 'depot' | 'retour',
+  utilisateurId: number,
+  produitId: number,
+  quantite: number,
+  longueur?: number,
+  largeur?: number,
+  note?: string
+})
+- Valide stock disponible si type = pret ou consommation
+- Appelle validateMovement() d'abord
+- Utilise storage.createMovement()
+- Si stock bas après mouvement → Appelle AlertService.createStockLowAlert()
+- Retourne Movement créé
+
+validateMovement(data)
+- Vérifie produit existe et actif
+- Si pret/consommation : vérifie stock disponible >= quantité
+- Si géomembrane : vérifie dimensions fournies
+- Throw Error avec message clair si invalide
+- Retourne {valid: boolean, message?: string}
+
+getUserMovements(userId: number, filters?: {statut?: string, type?: string})
+- Utilise storage avec filtres
+- Retourne Movement[] triés par date DESC
+
+getProductMovements(productId: number)
+- Historique complet d'un produit
+- Retourne Movement[]
+
+getActiveLoans(userId?: number)
+- Fetch prêts avec statut = 'actif'
+- Si userId fourni : filtrer par user
+- Retourne Movement[]
+
+processReturn(movementId: number, returnData: {
+  quantiteRetournee?: number,
+  note?: string
+})
+- Fetch movement original
+- Valide type = 'pret' et statut = 'actif'
+- Update statut à 'retourné'
+- Si quantiteRetournee < quantité prêtée : gère retour partiel
+- Ajoute dateRetour
+- Supprime alerte retour attendu si existe
+- Retourne Movement mis à jour
+
+getMovementStats(period: 'week' | 'month' | 'year')
+- Calcule stats : total mouvements, par type, par utilisateur
+- Agrégation depuis storage
+- Retourne {total, byType: {pret, consommation, depot, retour}, byUser: [...]}
+
+getMostBorrowedProducts(limit: number = 10)
+- Top produits les plus empruntés
+- Compte mouvements type='pret' par produit
+- Retourne {productId, productName, count}[] trié DESC
+
+Règles métier :
+- Prêt : Stock disponible doit être >= quantité
+- Consommation : Réduit stock définitivement
+- Dépôt : Augmente stock initial du produit
+- Retour : Clôture prêt (statut → 'retourné', dateRetour remplie)
+- Géomembranes : longueur + largeur obligatoires
+- Alertes auto : Si stock < 5 après mouvement → Créer alerte
+
+## 3. ListeService (server/services/ListeService.ts)
+
+Responsabilités : Gestion panier, validation critique avec transaction
+
+Méthodes principales :
+
+getUserListe(userId: number)
+- Fetch liste + items avec détails produits
+- Utilise storage.getUserListe()
+- Retourne {liste: Liste, items: ListeItem[]}
+
+addItemToListe(userId: number, itemData: {
+  produitId: number,
+  quantite: number,
+  typeMouvement: 'pret' | 'consommation',
+  longueur?: number,
+  largeur?: number
+})
+- Vérifie produit existe et actif
+- Si item déjà dans liste : update quantité
+- Sinon : crée nouvel item
+- Utilise storage.addToListe()
+- Retourne ListeItem
+
+updateListeItem(itemId: number, quantite: number)
+- Update quantité d'un item
+- Si quantité = 0 : supprime item
+- Retourne ListeItem ou null
+
+removeListeItem(itemId: number)
+- Supprime item de la liste
+- Retourne void
+
+clearListe(userId: number)
+- Supprime tous items de la liste user
+- Retourne void
+
+validateListe(userId: number)
+MÉTHODE CRITIQUE - TRANSACTION OBLIGATOIRE
+
+Étapes (dans db.transaction) :
+1. Fetch liste + items (lock si nécessaire)
+2. Vérifier liste non vide
+3. Fetch tous produits en PARALLÈLE (Promise.all, PAS boucle await)
+4. Pour chaque item : valider stock disponible via ProductService.getAvailableStock()
+5. Si UN SEUL item invalide : throw Error (rollback auto)
+6. Créer tous mouvements en BATCH (storage.bulkCreateMovements ou loop)
+7. Décrémente stocks
+8. Clear liste (supprimer items)
+9. Préparer données email MAIS pas envoyer encore
+10. Commit transaction
+11. APRÈS commit : Envoyer email via EmailService (fire-and-forget)
+12. Retourner {success: true, movementsCount, items: [...]}
+
+Structure :
+return await db.transaction(async (tx) => {
+  // Toutes opérations DB ici
+  // Si erreur → rollback automatique
+})
+
+Après transaction commitée : emailService.sendValidationEmail().catch(err => logger.error())
+
+Règles critiques :
+- Transaction OBLIGATOIRE (évite corruption si crash)
+- Validation stock AVANT création mouvements
+- Queries produits en Promise.all() (pas séquentiel)
+- Emails APRÈS commit (pas dans transaction)
+- Si email fail : logger mais ne pas bloquer réponse
+
+getListeItemCount(userId: number)
+- Compte items dans liste
+- Retourne number
+
+getListeSummary(userId: number)
+- Résumé : total items, catégories présentes, types mouvements
+- Retourne {itemCount, categories: string[], types: string[]}
+
+## 4. AlertService (server/services/AlertService.ts)
+
+Responsabilités : Gestion notifications utilisateurs
+
+Méthodes principales :
+
+createAlert(data: {
+  type: 'nouveau_produit' | 'retour_attendu' | 'stock_bas' | 'validation_produit',
+  utilisateurCibleId: number,
+  produitId?: number,
+  mouvementId?: number,
+  message: string
+})
+- Crée alerte dans DB via storage
+- Retourne Alert
+
+getUserAlerts(userId: number, filters?: {unreadOnly?: boolean})
+- Fetch alertes user
+- Si unreadOnly=true : seulement non lues
+- Tri par date DESC
+- Retourne Alert[]
+
+getUnreadCount(userId: number)
+- Compte alertes non lues
+- Retourne number
+
+markAsRead(alertId: number)
+- Update alert.lu = true
+- Retourne Alert
+
+markAllAsRead(userId: number)
+- Update toutes alertes user à lu=true
+- Retourne {count: number}
+
+deleteAlert(alertId: number)
+- Supprime alerte
+- Retourne void
+
+createStockLowAlert(productId: number)
+- Appelé automatiquement si stock < seuil (ex: 5)
+- Crée alerte pour tous admins
+- Message : "Stock faible pour [produit] : X restants"
+- Retourne Alert[]
+
+createReturnReminderAlerts()
+- Pour utilisation future (cron job)
+- Fetch prêts actifs > 7 jours
+- Crée alerte retour attendu pour chaque user
+- Retourne Alert[]
+
+## 5. EmailService (server/services/EmailService.ts)
+
+Responsabilités : Envoi emails via Resend, logging
+
+Dépendances : Utilise code existant de server/email.ts
+
+Méthodes principales :
+
+sendValidationEmail(userId: number, items: ListeItem[])
+- Récupère user email
+- Build HTML email avec liste items validés
+- Utilise sendWithRetry()
+- Log email dans DB via logEmail()
+- Retourne {success: boolean, messageId?: string}
+
+sendReturnReminderEmail(userId: number, loans: Movement[])
+- Email rappel retour matériel
+- Template HTML avec liste prêts à retourner
+- Retourne {success: boolean}
+
+sendStockAlertEmail(adminEmails: string[], product: Product, stockLevel: number)
+- Email admins pour stock faible
+- Template avec nom produit + stock restant
+- Retourne {success: boolean}
+
+sendWithRetry(emailData: {to, subject, html}, maxRetries: number = 3)
+- Tente envoi via Resend API
+- Si échec : retry avec backoff exponentiel (1s, 2s, 4s)
+- Logger chaque tentative
+- Throw Error après maxRetries échecs
+- Retourne Resend response
+
+logEmail(data: {
+  destinataire: string,
+  sujet: string,
+  statut: 'success' | 'failed',
+  messageErreur?: string
+})
+- Enregistre dans table emailLogs
+- Utilise storage.logEmail()
+- Retourne EmailLog
+
+buildValidationEmailHtml(items: ListeItem[]): string
+- Génère HTML email validation liste
+- Tableau produits avec quantités
+- Couleurs FiltrePlante
+- Retourne string HTML
+
+buildReminderEmailHtml(loans: Movement[]): string
+- Génère HTML rappel retours
+- Liste prêts avec dates
+- Retourne string HTML
+
+Règles métier :
+- Retry 3× avec exponential backoff (1s, 2s, 4s)
+- Logger TOUS emails (succès + échecs)
+- Ne JAMAIS bloquer si email fail (catch error, log, continue)
+- Utiliser templates HTML avec couleurs FiltrePlante
+
+# STRUCTURE FICHIERS
+
+Créer :
+/server
+  /services
+    ProductService.ts
+    MovementService.ts
+    ListeService.ts
+    AlertService.ts
+    EmailService.ts
+
+Chaque service :
+- Import storage, db, logger
+- Export class ou objet avec méthodes
+- Documentation inline pour méthodes critiques
+- Gestion erreurs avec throw Error() clair
+
+# CONTRAINTES
+
+1. Services indépendants du reste
+   - Peuvent être importés et testés seuls
+   - N'utilisent que storage.ts et db.ts
+   - Pas de dépendance à routes.ts
+
+2. Pas de modification routes.ts
+   - routes.ts reste intact (1254 lignes)
+   - Services créés en parallèle
+   - Migration = Phase 3
+
+3. Utiliser storage.ts existant
+   - Ne pas réinventer queries DB
+   - storage.ts = abstraction déjà en place
+   - Services appellent storage pour DB ops
+
+4. Transaction pour validateListe
+   - CRITIQUE : db.transaction() obligatoire
+   - Rollback auto si erreur
+   - Emails APRÈS commit
+
+5. Cache stock intelligent
+   - Map interne dans ProductService
+   - TTL 60 secondes
+   - Invalidation sur clearStaleCache()
+
+6. Gestion erreurs claire
+   - throw Error() avec messages explicites
+   - Erreurs catchées par errorHandler (Phase 1)
+
+# VALIDATION
+
+Tests manuels services (créer scripts test simples) :
+
+Test ProductService :
+- getAvailableStock(1) → Retourne nombre
+- Cache fonctionne (2ème appel immédiat = même valeur)
+- createProduct() → Produit créé
+
+Test MovementService :
+- createMovement() avec stock suffisant → OK
+- createMovement() avec stock insuffisant → Error
+
+Test ListeService :
+- addItemToListe() → Item ajouté
+- validateListe() → Transaction OK, mouvements créés
+
+Test AlertService :
+- createAlert() → Alerte créée
+- getUserAlerts() → Liste alertes
+
+Test EmailService :
+- sendWithRetry() avec mock Resend → Retry fonctionne
+
+Critères succès Phase 2 :
+- ✅ 5 services créés et fonctionnels
+- ✅ Tests basiques passent
+- ✅ Transaction validateListe fonctionne
+- ✅ Cache stock opérationnel
+- ✅ routes.ts toujours intact et fonctionnel
+
+# DOCUMENTATION
+
+Créer server/services/README.md :
+
+Contenu :
+- Rôle de chaque service
+- Méthodes principales par service
+- Règles métier importantes
+- Note : "Services prêts pour Phase 3 (migration routes)"
+
+Phase suivante :
+Après validation Phase 2 → Phase 3 (Refactoriser routes.ts pour utiliser services)
