@@ -1,0 +1,479 @@
+# OBJECTIF
+Phase 3/3 de refactorisation backend : Migrer les 21 endpoints existants de routes.ts vers architecture services créée en Phase 2.
+
+# CONTEXTE
+Phase 1 terminée : Middlewares ✅
+Phase 2 terminée : 5 services créés ✅
+Phase 3 : Migration des endpoints RÉELS (pas d'invention)
+
+Endpoints à migrer : 21 routes existantes
+routes.ts actuel : 1254 lignes
+Objectif : routes.ts orchestrateur ~50 lignes
+
+Services disponibles :
+- ProductService (Phase 2)
+- MovementService (Phase 2)
+- ListeService (Phase 2)
+- AlertService (Phase 2)
+- EmailService (Phase 2)
+
+# STRATÉGIE
+
+Migration stricte sans breaking change :
+1. Backup routes.ts → routes.ts.backup
+2. Créer routes modulaires avec endpoints EXISTANTS uniquement
+3. Migrer logique vers services (ajouter méthodes si manquantes)
+4. Tester chaque domaine
+5. Nouveau routes.ts = orchestrateur
+
+# INVENTAIRE ENDPOINTS RÉELS (21 routes)
+
+AUTH (1)
+- POST /api/auth/verify-admin
+
+PRODUCTS (10)
+- GET /api/products
+- GET /api/products/pending
+- GET /api/categories
+- GET /api/categories/:categorie/sous-sections
+- GET /api/units
+- GET /api/products/export-csv
+- POST /api/products
+- POST /api/products/:id/validate
+- PUT /api/products/:id
+- DELETE /api/products/:id
+
+MOVEMENTS (5)
+- GET /api/movements/active
+- GET /api/movements/active/:userId
+- POST /api/movements/borrow
+- POST /api/movements/return
+- POST /api/movements/deposit
+
+ALERTS (2)
+- GET /api/alerts/unread/:userId
+- POST /api/alerts/:id/read
+
+LISTE (5)
+- GET /api/liste/:userId
+- POST /api/liste/add
+- DELETE /api/liste/item/:itemId
+- DELETE /api/liste/:userId/clear
+- POST /api/liste/:userId/validate (CRITIQUE)
+
+ADMIN (2)
+- POST /api/import-csv
+- POST /api/init-users
+
+# ROUTES MODULAIRES À CRÉER
+
+## 1. server/routes/auth.ts
+
+Import : storage, bcrypt, logger
+
+POST /api/auth/verify-admin
+- Body : {userId, password}
+- Logique actuelle : bcrypt.compare avec user.passwordHash
+- Réponse : {success, user: {id, nom, role}} ou 401
+- Garder logique identique (pas besoin service pour ça)
+
+## 2. server/routes/products.ts
+
+Import : ProductService, storage, logger
+
+GET /api/products
+- Appelle storage.getAllProducts() + filtre statut="valide"
+- Enrichit avec stockDisponible via ProductService.getAvailableStock()
+- Réponse : Product[] enrichis
+
+GET /api/products/pending
+- Appelle storage.getProductsByStatus("en_attente")
+- Enrichit avec stock
+- Réponse : Product[] enrichis
+
+GET /api/categories
+- Logique actuelle : Map catégories + compteurs + sousSections
+- Peut rester dans route (logique de transformation)
+- Réponse : {categorie, count, sousSections}[]
+
+GET /api/categories/:categorie/sous-sections
+- Filtre produits par catégorie
+- Extract unique sousSections + tri ("Tous" en premier)
+- Réponse : string[]
+
+GET /api/units
+- Appelle storage.getAllUnits()
+- Réponse : string[]
+
+GET /api/products/export-csv
+- Fetch tous produits enrichis stock
+- Génère CSV avec escape
+- Headers Content-Type + Content-Disposition
+- Réponse : CSV file download
+
+POST /api/products
+- Parse avec insertProductSchema
+- Appelle ProductService.createProduct()
+- Logique variants JR (rouleau 50m, template, chute) dans service ou route
+- Emails nouveau produit via EmailService
+- Alerte admin si créé par non-admin
+- Réponse : Product créé
+
+POST /api/products/:id/validate
+- Appelle storage.validateProduct()
+- Email validation via EmailService
+- Réponse : Product validé
+
+PUT /api/products/:id
+- Appelle ProductService.updateProduct() ou storage.updateProduct()
+- Réponse : Product mis à jour
+
+DELETE /api/products/:id
+- Fetch product info pour email
+- Email refus via EmailService
+- Appelle storage.deleteProduct()
+- Réponse : {success: true}
+
+## 3. server/routes/movements.ts
+
+Import : MovementService, storage, logger
+
+GET /api/movements/active
+- Fetch tous mouvements via storage.getAllMovements()
+- Filtre statut="en_cours" + type="pret"
+- Enrichit : product, user, duréeJours, statusDuree (recent/attention/retard)
+- Réponse : Movement[] enrichis
+
+GET /api/movements/active/:userId
+- Appelle storage.getActiveMovementsByUser(userId)
+- Enrichit : product, duréeJours, statusDuree
+- Réponse : Movement[] enrichis
+
+POST /api/movements/borrow
+- Body : {utilisateurId, produitId, quantite, type}
+- Valide produit existe + statut="valide"
+- Vérifie type mouvement autorisé
+- Vérifie stock disponible via ProductService.getAvailableStock()
+- Crée movement via storage.createMovement()
+- Si consommation : update stock + désactive si stock=0 (géomembrane/JR)
+- Réponse : Movement créé
+
+POST /api/movements/return
+- Body : {mouvementId, quantite}
+- Fetch movement via storage.getMovement()
+- Si retour partiel : nouveau movement type="retour" + update quantité original
+- Si retour complet : update statut="termine"
+- Réponse : {success: true}
+
+POST /api/movements/deposit
+- Body : {utilisateurId, produitId, quantite}
+- Valide produit existe + statut="valide"
+- Crée movement type="depot" via storage.createMovement()
+- Update stock + réactive si inactif (géomembrane/JR)
+- Réponse : Movement créé
+
+## 4. server/routes/alerts.ts
+
+Import : AlertService, storage, logger
+
+GET /api/alerts/unread/:userId
+- Appelle storage.getUnreadAlerts(userId)
+- Réponse : Alert[]
+
+POST /api/alerts/:id/read
+- Appelle storage.markAlertAsRead(id)
+- Réponse : Alert
+
+## 5. server/routes/listes.ts
+
+Import : ListeService, storage, logger, EmailService
+
+GET /api/liste/:userId
+- Appelle storage.getListeWithItems(userId)
+- Réponse : {liste, items}
+
+POST /api/liste/add
+- Body : {userId, item: {typeAction, produitId, typeMouvement, movementId, quantite, dimensions...}}
+- Validations JR template (longueur 10-100m)
+- Appelle storage.addItemToListe()
+- Réponse : ListeItem créé
+
+DELETE /api/liste/item/:itemId
+- Appelle storage.removeItemFromListe(itemId)
+- Réponse : {success: true}
+
+DELETE /api/liste/:userId/clear
+- Appelle storage.clearListe(userId)
+- Réponse : {success: true}
+
+POST /api/liste/:userId/validate
+ENDPOINT CRITIQUE - NE PAS CASSER
+- Fetch liste + items via storage.getListeWithItems()
+- Valide liste non vide
+- Logique actuelle ligne 987-1245 :
+  * Boucle sur items (prendre/rendre/deposer)
+  * Validations produits, stock, types mouvements
+  * Création movements
+  * Gestion variants géomembranes (longueur×largeur×couleur)
+  * Gestion variants JR rouleaux partiels
+  * Update stocks
+  * Clear liste
+  * Email validation
+
+OPTION A : Garder logique dans route pour Phase 3 (sécurisé)
+- Logique complexe, risque bugs si migration
+- Migrer vers ListeService en Phase 3.1 ultérieure
+
+OPTION B : Migrer vers ListeService.validateListe() (recommandé)
+- Utilise transaction déjà dans service
+- Logique isolée et testable
+- Emails après commit
+
+Choix : Option B si transaction déjà implémentée en Phase 2
+
+Réponse : {success: true, results}
+
+## 6. server/routes/admin.ts
+
+Import : storage, logger, parse (csv)
+
+POST /api/import-csv
+- Lecture fichier CSV hardcodé
+- Parse avec csv-parse
+- Créé produits via storage.createProduct() si non existants
+- Réponse : {imported, skipped, total}
+
+POST /api/init-users
+- Vérifie si users existent
+- Si non : crée 5 users par défaut via storage.createUser()
+- Réponse : {message, count}
+
+## 7. server/routes.ts (orchestrateur)
+
+Nouveau fichier minimaliste :
+
+Import express, middlewares, routes modulaires
+
+Function registerRoutes(app) :
+- app.use(requestLogger) ← Middleware Phase 1
+- app.use('/api/auth', authRouter)
+- app.use('/api/products', productsRouter)
+- app.use('/api/movements', movementsRouter)
+- app.use('/api/alerts', alertsRouter)
+- app.use('/api/liste', listesRouter)
+- app.use('/api/admin', adminRouter)
+- app.use(errorHandler) ← Middleware Phase 1 (EN DERNIER)
+
+~50 lignes total
+
+# MÉTHODES SERVICES À AJOUTER
+
+ProductService (si manquantes) :
+- getAvailableStock(productId) déjà créé Phase 2 ✅
+- createProduct() déjà créé Phase 2 ✅
+- updateProduct() déjà créé Phase 2 ✅
+
+MovementService :
+- Vérifier si méthodes borrow/return/deposit existent
+- Ajouter si manquantes
+
+ListeService :
+- validateListe(userId) : CRITIQUE
+  * Doit utiliser transaction db.transaction()
+  * Toute la logique ligne 987-1245
+  * Emails APRÈS commit
+
+AlertService :
+- markAsRead() probablement existant ✅
+
+EmailService :
+- sendEmail() existant Phase 2 ✅
+
+# PROCÉDURE MIGRATION
+
+1. Backup sécurité
+   cp server/routes.ts server/routes.ts.backup
+
+2. Créer routes modulaires (ordre suggéré)
+   - auth.ts (simple, 1 route)
+   - alerts.ts (simple, 2 routes)
+   - admin.ts (simple, 2 routes)
+   - movements.ts (moyen, 5 routes)
+   - products.ts (complexe, 10 routes)
+   - listes.ts (critique, 5 routes dont validate)
+
+3. Pour chaque fichier route
+   - Import services nécessaires
+   - Créer router Express
+   - Migrer endpoints un par un
+   - Tester endpoint (curl ou Postman)
+
+4. Créer orchestrateur routes.ts
+   - Import tous routers
+   - Enregistre avec app.use()
+   - Middlewares avant/après
+
+5. Tests globaux
+   - Lancer app
+   - Tester workflow complet frontend
+   - Vérifier logs propres
+
+6. Si OK : supprimer backup
+   Si problème : restaurer backup
+
+# RÈGLES CRITIQUES
+
+1. ZÉRO breaking change
+   - Mêmes URLs
+   - Mêmes formats réponse
+   - Mêmes status codes
+   - Frontend ne change PAS
+
+2. Helpers existants
+   - calculateAvailableStock : Utiliser ProductService.getAvailableStock() à la place
+   - enrichProductWithStock : Peut rester helper dans products.ts
+
+3. Logique complexe variants
+   - Géomembranes (longueur×largeur×couleur)
+   - JR rouleaux (rouleau 50m, template, chute, partiels)
+   - Garder logique identique, juste déplacer
+
+4. Transaction validateListe
+   - DOIT être dans db.transaction()
+   - Rollback auto si erreur
+   - Emails APRÈS commit
+
+5. Emails
+   - Tous via EmailService Phase 2
+   - Templates via email-templates existants
+   - Logging automatique
+
+6. Gestion erreurs
+   - try/catch dans routes
+   - next(error) pour errorHandler
+   - Status codes appropriés
+
+# RÉSULTAT ATTENDU
+
+Structure finale :
+/server
+  /middleware (Phase 1)
+    logger.ts
+    errorHandler.ts
+    requestLogger.ts
+  /services (Phase 2)
+    ProductService.ts
+    MovementService.ts
+    ListeService.ts
+    AlertService.ts
+    EmailService.ts
+  /routes (Phase 3 - NOUVEAU)
+    auth.ts (~30 lignes)
+    products.ts (~150 lignes)
+    movements.ts (~100 lignes)
+    alerts.ts (~30 lignes)
+    listes.ts (~120 lignes)
+    admin.ts (~60 lignes)
+  routes.ts (~50 lignes - orchestrateur)
+  routes.ts.backup (supprimable après validation)
+  storage.ts (inchangé)
+  db.ts (inchangé)
+
+Métriques :
+- routes.ts : 1254 lignes → 50 lignes ✅
+- Code réparti dans 6 fichiers routes (~490 lignes)
+- Logique business dans services
+- Aucune régression fonctionnelle ✅
+
+# VALIDATION POST-MIGRATION
+
+Tests critiques (doivent tous passer) :
+
+AUTH
+- POST /api/auth/verify-admin avec mot de passe correct → 200
+- POST /api/auth/verify-admin avec mot de passe incorrect → 401
+
+PRODUCTS
+- GET /api/products → Liste produits validés enrichis stock
+- GET /api/products/pending → Produits en attente
+- POST /api/products → Crée produit + variants + emails
+- GET /api/products/export-csv → Télécharge CSV
+
+MOVEMENTS
+- GET /api/movements/active → Tous prêts actifs enrichis
+- POST /api/movements/borrow → Emprunte produit + update stock si consommation
+
+LISTE (CRITIQUE)
+- POST /api/liste/add → Ajoute item
+- POST /api/liste/:userId/validate → Valide liste complète
+  * Vérifie mouvements créés
+  * Vérifie stock mis à jour
+  * Vérifie email envoyé
+  * Vérifie liste vidée
+
+FRONTEND
+- Workflow complet : Parcourir → Ajouter panier → Valider → Vérifier stock
+- Navigation produits par catégories/sous-sections
+- Export CSV admin
+- Alertes notifications
+
+Console
+- Logs structurés [INFO]/[ERROR]
+- Aucune erreur non catchée
+- Temps réponse normaux
+
+Critères succès final :
+- ✅ 21 endpoints répondent correctement
+- ✅ Frontend fonctionne sans modification
+- ✅ Logs propres et exploitables
+- ✅ Aucune régression fonctionnelle
+- ✅ Transaction validateListe opérationnelle
+- ✅ Emails envoyés correctement
+
+# POINTS D'ATTENTION SPÉCIFIQUES
+
+1. POST /api/liste/:userId/validate (ligne 987-1245)
+   - Logique la plus complexe du fichier
+   - 3 types actions : prendre, rendre, deposer
+   - Gestion variants géomembranes et JR
+   - Emails avec données enrichies
+   - DOIT rester 100% fonctionnel
+   - Migration progressive si nécessaire
+
+2. Helpers calculateAvailableStock et enrichProductWithStock
+   - Actuellement définis dans registerRoutes()
+   - Remplacer par ProductService.getAvailableStock()
+   - Ou garder comme helpers locaux dans products.ts
+
+3. Création variants JR automatique (POST /api/products)
+   - Logique ligne 174-253
+   - Crée 3-4 produits supplémentaires
+   - Migrer dans ProductService.createProduct() ou route
+
+4. Console.error debug logs (ligne 1059+)
+   - Logs debug géomembranes à nettoyer ou remplacer par logger.info()
+
+5. TODO ligne 987
+   - "Wrap all operations in a transaction"
+   - Phase 3 = implémente ça dans ListeService.validateListe()
+
+# DOCUMENTATION
+
+Mettre à jour server/README.md :
+
+Architecture refactorisée :
+- Middlewares : logger, errorHandler, requestLogger
+- Services : 5 services métier isolés
+- Routes : 6 fichiers modulaires par domaine
+- Orchestrateur : routes.ts enregistre toutes les routes (~50 lignes)
+
+Ajouter endpoint :
+1. Identifier domaine (auth, products, movements, alerts, listes, admin)
+2. Ajouter route dans fichier correspondant
+3. Appeler service approprié
+4. Tester
+
+Modifier logique business :
+1. Modifier service approprié
+2. Tests unitaires service
+3. Route reste inchangée (appelle juste service)

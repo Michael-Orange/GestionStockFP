@@ -1,0 +1,446 @@
+# OBJECTIF
+Phase 3/3 de refactorisation backend : Migrer routes.ts pour utiliser les services créés en Phase 2. Réduire de 1254 lignes à ~200 lignes.
+
+# CONTEXTE
+Phase 1 terminée : Middlewares ✅
+Phase 2 terminée : 5 services créés ✅
+Phase 3 : Migration finale routes.ts → architecture services
+
+Services disponibles :
+- ProductService : CRUD produits, cache stock
+- MovementService : Création mouvements, validation
+- ListeService : Panier, validation avec transaction
+- AlertService : Notifications
+- EmailService : Envoi emails avec retry
+
+# STRATÉGIE MIGRATION
+
+Approche progressive par domaine :
+1. Créer routes modulaires dans /server/routes/
+2. Migrer endpoint par endpoint
+3. Tester chaque domaine avant de continuer
+4. Garder backup de routes.ts original (renommer routes.ts.backup)
+5. Nouveau routes.ts = orchestrateur léger
+
+# ARCHITECTURE CIBLE
+
+Structure finale :
+/server
+  /routes (NOUVEAU)
+    products.ts     (Routes produits)
+    movements.ts    (Routes mouvements)
+    listes.ts       (Routes panier/liste)
+    alerts.ts       (Routes notifications)
+    admin.ts        (Routes admin)
+  routes.ts         (Orchestrateur ~50 lignes)
+  routes.ts.backup  (Sauvegarde original)
+
+# SPÉCIFICATIONS PAR DOMAINE
+
+## 1. Products Routes (server/routes/products.ts)
+
+Import : ProductService, logger, storage (si nécessaire)
+
+Endpoints à migrer depuis routes.ts actuel :
+
+GET /api/products
+- Appelle productService.getAllProducts()
+- Query params : categorie, sousSection, actifOnly
+- Réponse : Product[]
+
+GET /api/products/:id
+- Appelle productService.getProductById(id)
+- 404 si non trouvé
+- Réponse : Product
+
+GET /api/products/:id/stock
+- Appelle productService.getAvailableStock(id)
+- Réponse : {productId, stock: number}
+
+POST /api/products
+- Admin only (à sécuriser Phase suivante)
+- Appelle productService.createProduct(req.body)
+- Réponse : Product créé, 201
+
+PUT /api/products/:id
+- Admin only
+- Appelle productService.updateProduct(id, req.body)
+- Réponse : Product mis à jour
+
+DELETE /api/products/:id
+- Admin only
+- Appelle productService.deleteProduct(id)
+- Soft delete (actif=false)
+- Réponse : 204 No Content
+
+POST /api/products/template/:templateId/variant
+- Création variant depuis template (géomembrane, JR)
+- Appelle productService.createFromTemplate(templateId, req.body)
+- Réponse : Product créé
+
+PUT /api/products/:id/toggle
+- Admin only
+- Toggle actif/inactif
+- Appelle productService.toggleProductStatus(id, req.body.isActive)
+- Réponse : Product
+
+Toutes routes : try/catch avec next(error) pour errorHandler
+
+## 2. Movements Routes (server/routes/movements.ts)
+
+Import : MovementService, logger
+
+Endpoints :
+
+POST /api/movements
+- Création mouvement (pret/consommation/depot/retour)
+- Body : {type, utilisateurId, produitId, quantite, dimensions?}
+- Appelle movementService.createMovement(req.body)
+- Réponse : Movement créé, 201
+
+GET /api/movements/user/:userId
+- Historique mouvements utilisateur
+- Query params : statut, type
+- Appelle movementService.getUserMovements(userId, filters)
+- Réponse : Movement[]
+
+GET /api/movements/product/:productId
+- Historique mouvements produit
+- Appelle movementService.getProductMovements(productId)
+- Réponse : Movement[]
+
+GET /api/movements/loans/active
+- Prêts actifs (tous ou par user)
+- Query param : userId (optionnel)
+- Appelle movementService.getActiveLoans(userId?)
+- Réponse : Movement[]
+
+POST /api/movements/:id/return
+- Traiter retour d'un prêt
+- Body : {quantiteRetournee?, note?}
+- Appelle movementService.processReturn(id, req.body)
+- Réponse : Movement mis à jour
+
+GET /api/movements/stats
+- Statistiques mouvements
+- Query param : period (week/month/year)
+- Appelle movementService.getMovementStats(period)
+- Réponse : {total, byType, byUser}
+
+GET /api/movements/top-borrowed
+- Produits les plus empruntés
+- Query param : limit (default 10)
+- Appelle movementService.getMostBorrowedProducts(limit)
+- Réponse : {productId, name, count}[]
+
+## 3. Listes Routes (server/routes/listes.ts)
+
+Import : ListeService, logger
+
+Endpoints :
+
+GET /api/liste/:userId
+- Récupérer panier/liste utilisateur
+- Appelle listeService.getUserListe(userId)
+- Réponse : {liste, items: ListeItem[]}
+
+POST /api/liste/:userId/add
+- Ajouter item à la liste
+- Body : {produitId, quantite, typeMouvement, dimensions?}
+- Appelle listeService.addItemToListe(userId, req.body)
+- Réponse : ListeItem créé, 201
+
+PUT /api/liste/item/:itemId
+- Update quantité item
+- Body : {quantite}
+- Appelle listeService.updateListeItem(itemId, quantite)
+- Réponse : ListeItem ou 204 si supprimé
+
+DELETE /api/liste/item/:itemId
+- Supprimer item
+- Appelle listeService.removeListeItem(itemId)
+- Réponse : 204 No Content
+
+DELETE /api/liste/:userId
+- Vider liste
+- Appelle listeService.clearListe(userId)
+- Réponse : 204 No Content
+
+POST /api/liste/:userId/validate
+ENDPOINT CRITIQUE
+- Validation liste → création mouvements
+- Appelle listeService.validateListe(userId)
+- Transaction DB gérée dans service
+- Réponse : {success: true, movementsCount, items}
+
+GET /api/liste/:userId/count
+- Nombre items dans liste
+- Appelle listeService.getListeItemCount(userId)
+- Réponse : {count: number}
+
+GET /api/liste/:userId/summary
+- Résumé liste
+- Appelle listeService.getListeSummary(userId)
+- Réponse : {itemCount, categories, types}
+
+## 4. Alerts Routes (server/routes/alerts.ts)
+
+Import : AlertService, logger
+
+Endpoints :
+
+GET /api/alerts/:userId
+- Récupérer alertes utilisateur
+- Query param : unreadOnly (boolean)
+- Appelle alertService.getUserAlerts(userId, filters)
+- Réponse : Alert[]
+
+GET /api/alerts/:userId/unread/count
+- Nombre alertes non lues
+- Appelle alertService.getUnreadCount(userId)
+- Réponse : {count: number}
+
+POST /api/alerts
+- Créer alerte (admin/système)
+- Body : {type, utilisateurCibleId, produitId?, mouvementId?, message}
+- Appelle alertService.createAlert(req.body)
+- Réponse : Alert créé, 201
+
+PUT /api/alerts/:id/read
+- Marquer alerte comme lue
+- Appelle alertService.markAsRead(id)
+- Réponse : Alert
+
+PUT /api/alerts/:userId/read-all
+- Marquer toutes alertes comme lues
+- Appelle alertService.markAllAsRead(userId)
+- Réponse : {count: number}
+
+DELETE /api/alerts/:id
+- Supprimer alerte
+- Appelle alertService.deleteAlert(id)
+- Réponse : 204 No Content
+
+## 5. Admin Routes (server/routes/admin.ts)
+
+Import : ProductService, MovementService, AlertService, logger
+
+Endpoints admin (à protéger avec middleware auth plus tard) :
+
+GET /api/admin/stats
+- Statistiques globales app
+- Combine appels services (products count, movements stats, etc.)
+- Réponse : {productsCount, movementsCount, activeLoans, lowStockProducts}
+
+POST /api/admin/products/:id/validate
+- Validation produit en attente
+- Update product.statut = 'valide'
+- Créer alerte pour créateur
+- Réponse : Product validé
+
+GET /api/admin/products/pending
+- Produits en attente validation
+- Filtre products avec statut='en_attente'
+- Réponse : Product[]
+
+POST /api/admin/alerts/stock-low
+- Trigger manuel vérification stock bas
+- Appelle alertService.createStockLowAlert() pour produits < seuil
+- Réponse : {alertsCreated: number}
+
+# ORCHESTRATEUR routes.ts
+
+Nouveau fichier routes.ts (remplace actuel) :
+
+Structure :
+- Import express, middlewares, routes modulaires
+- Fonction registerRoutes(app)
+- Enregistrement middlewares globaux
+- Enregistrement routes par domaine
+- Error handler en dernier
+
+Contenu :
+import express from 'express';
+import { requestLogger } from './middleware/requestLogger';
+import { errorHandler } from './middleware/errorHandler';
+import productsRouter from './routes/products';
+import movementsRouter from './routes/movements';
+import listesRouter from './routes/listes';
+import alertsRouter from './routes/alerts';
+import adminRouter from './routes/admin';
+export function registerRoutes(app: express.Application) {
+// Middleware global de logging
+app.use(requestLogger);
+// Routes par domaine
+app.use('/api/products', productsRouter);
+app.use('/api/movements', movementsRouter);
+app.use('/api/liste', listesRouter);
+app.use('/api/alerts', alertsRouter);
+app.use('/api/admin', adminRouter);
+// Error handler (DOIT être en dernier)
+app.use(errorHandler);
+}
+
+Environ 50 lignes total
+
+# PROCÉDURE MIGRATION
+
+Étapes sécurisées :
+
+1. Backup routes.ts actuel
+   - Copier routes.ts → routes.ts.backup
+   - Garder en cas de problème
+
+2. Créer routes modulaires une par une
+   - Commencer par products.ts (plus simple)
+   - Tester chaque fichier indépendamment
+   - Puis movements.ts, listes.ts, alerts.ts, admin.ts
+
+3. Créer nouveau routes.ts (orchestrateur)
+   - Petit fichier qui importe et enregistre routes
+
+4. Tester chaque endpoint
+   - Comparer réponses avec backup
+   - Vérifier aucune régression
+
+5. Validation globale
+   - Lancer app avec nouveau routes.ts
+   - Tester frontend complet
+   - Vérifier logs propres
+
+6. Si OK : Supprimer routes.ts.backup
+   Si problème : Restaurer backup
+
+# RÈGLES CRITIQUES
+
+1. Endpoints identiques
+   - Mêmes URLs
+   - Mêmes formats réponse
+   - Aucun breaking change pour frontend
+
+2. Services font le travail
+   - Routes = minces (validation + appel service + réponse)
+   - Logique métier dans services
+   - Pas de duplication code
+
+3. Error handling uniforme
+   - try/catch dans chaque route
+   - next(error) pour errorHandler
+   - Messages d'erreur clairs
+
+4. Logs structurés
+   - Utiliser logger de Phase 1
+   - Logger actions importantes (validation liste, création produit, etc.)
+
+5. Pas de régression
+   - Frontend ne doit RIEN changer
+   - Mêmes endpoints, mêmes réponses
+   - Juste code backend propre
+
+# RÉSULTAT ATTENDU
+
+Structure finale :
+/server
+  /middleware
+    logger.ts
+    errorHandler.ts
+    requestLogger.ts
+  /services
+    ProductService.ts
+    MovementService.ts
+    ListeService.ts
+    AlertService.ts
+    EmailService.ts
+  /routes
+    products.ts (~80 lignes)
+    movements.ts (~100 lignes)
+    listes.ts (~90 lignes)
+    alerts.ts (~70 lignes)
+    admin.ts (~60 lignes)
+  routes.ts (~50 lignes - orchestrateur)
+  routes.ts.backup (supprimable après validation)
+
+Métriques :
+- routes.ts : 1254 lignes → 50 lignes ✅
+- Code réparti dans 5 fichiers routes (~400 lignes total)
+- Logique métier dans services (~1000 lignes)
+- Total : Mieux organisé, maintenable, testable
+
+Bénéfices :
+- Code lisible et modulaire
+- Facile d'ajouter endpoints
+- Services réutilisables
+- Prêt pour tests automatisés
+- Prêt pour auth middleware (phase suivante)
+
+# VALIDATION
+
+Tests post-migration :
+
+Endpoints critiques à vérifier :
+1. GET /api/products → Liste produits
+2. GET /api/products/:id/stock → Stock calculé
+3. POST /api/liste/:userId/add → Ajout item
+4. POST /api/liste/:userId/validate → Validation (CRITIQUE)
+5. POST /api/movements → Création mouvement
+6. GET /api/movements/user/:userId → Historique
+7. GET /api/alerts/:userId → Alertes
+8. POST /api/products → Création produit (admin)
+
+Frontend :
+- Ouvrir app
+- Tester workflow complet : Parcourir produits → Ajouter à liste → Valider → Vérifier mouvements
+- Vérifier alertes
+- Tester admin (validation produits)
+
+Console :
+- Logs structurés visibles
+- Aucune erreur non catchée
+- Temps réponses normaux
+
+Critères succès :
+- ✅ Tous endpoints répondent correctement
+- ✅ Frontend fonctionne sans modif
+- ✅ Logs propres et structurés
+- ✅ Aucune régression fonctionnelle
+- ✅ Code maintenable et lisible
+
+# DOCUMENTATION
+
+Mettre à jour server/README.md :
+
+Ajouter section :
+"## Architecture finale
+- Middlewares : logger, errorHandler, requestLogger
+- Services : 5 services métier (ProductService, MovementService, ListeService, AlertService, EmailService)
+- Routes : 5 fichiers routes modulaires par domaine
+- Orchestrateur : routes.ts enregistre toutes les routes
+
+## Ajouter un endpoint
+1. Ajouter méthode dans service approprié si nécessaire
+2. Créer route dans fichier /routes/ correspondant
+3. Route appelle service et retourne réponse
+4. Tester"
+
+# POINTS D'ATTENTION
+
+1. Transaction validateListe
+   - Vérifier que listeService.validateListe() est bien appelée
+   - Transaction gérée dans service
+   - Pas besoin de transaction dans route
+
+2. Cache stock
+   - Utilisé automatiquement par ProductService.getAvailableStock()
+   - Rien de spécial dans routes
+
+3. Emails après validation
+   - Gérés par ListeService après commit transaction
+   - Route juste appelle service
+
+4. Alertes automatiques
+   - Créées par services (MovementService, ProductService)
+   - Routes n'ont pas à gérer ça
+
+5. Backup sécurité
+   - Ne pas supprimer routes.ts.backup avant validation complète
+   - Restauration facile si problème
