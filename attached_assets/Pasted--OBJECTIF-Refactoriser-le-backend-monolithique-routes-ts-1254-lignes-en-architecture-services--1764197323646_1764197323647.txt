@@ -1,0 +1,233 @@
+# OBJECTIF
+Refactoriser le backend monolithique (routes.ts = 1254 lignes) en architecture services propre et maintenable.
+
+# CONTEXTE
+App : Gestion Stock FiltrePlante
+Problème : routes.ts = 1254 lignes, logique business mélangée avec routes Express, difficile à maintenir/tester
+Objectif : Architecture propre pour faciliter ajout transactions, sécurité, tests futurs
+
+# ARCHITECTURE CIBLE
+
+Nouvelle structure :
+/server
+  /services (NOUVEAU)
+    ProductService.ts
+    MovementService.ts
+    ListeService.ts
+    AlertService.ts
+    EmailService.ts
+  /middleware (NOUVEAU)
+    errorHandler.ts
+    logger.ts
+  /routes (NOUVEAU)
+    products.ts
+    movements.ts
+    listes.ts
+    alerts.ts
+    admin.ts
+  routes.ts (devient orchestrateur léger ~50 lignes)
+  storage.ts (garde abstraction DB)
+  db.ts (inchangé)
+  email.ts (à intégrer dans EmailService)
+
+# SPÉCIFICATIONS SERVICES
+
+## ProductService
+Responsabilités :
+- CRUD produits
+- Calcul stock disponible avec cache court terme (1 min)
+- Gestion variants (géomembranes, JR)
+- Validation template → produit réel
+
+Méthodes clés :
+- getAllProducts(filters) : Liste avec filtres catégorie/sousSection
+- getProductById(id) : Produit unique
+- getProductsByIds(ids) : Batch pour optimisation
+- getAvailableStock(productId) : Stock calculé + cache 60 secondes
+- createProduct(data), updateProduct(id, data), deleteProduct(id)
+- createFromTemplate(templateId, variantData) : Création variants
+- toggleProductStatus(id, isActive)
+
+Règles métier :
+- Stock disponible = stock initial + dépôts - prêts actifs - consommations
+- Produits inactifs invisibles mais historique préservé
+- Templates non supprimables si variants existent
+- Validation dimensions géomembranes (longueur × largeur)
+
+Cache interne : Map<productId, {value, timestamp}>, TTL 60 secondes
+
+## MovementService
+Responsabilités :
+- Création mouvements (prêt/consommation/dépôt/retour)
+- Validation stock avant mouvement
+- Historique et statistiques
+
+Méthodes clés :
+- createMovement({type, userId, productId, quantity, dimensions?})
+- validateMovement(data) : Vérifie stock, permissions
+- getUserMovements(userId, filters)
+- getProductMovements(productId)
+- getActiveLoans(userId?)
+- processReturn(movementId, returnData)
+- getMovementStats(period), getMostBorrowedProducts(limit)
+
+Règles métier :
+- Prêt : Vérifie stock >= quantité
+- Consommation : Réduit stock définitivement
+- Dépôt : Augmente stock initial
+- Retour : Clôture prêt, réalimente stock
+- Géomembranes : Dimensions obligatoires
+- Alertes auto si stock bas
+
+## ListeService
+Responsabilités :
+- CRUD panier utilisateur
+- Validation et conversion en mouvements
+- Gestion transaction (CRITIQUE)
+
+Méthodes clés :
+- getUserListe(userId), addItemToListe(userId, item)
+- updateListeItem(itemId, quantity), removeListeItem(itemId)
+- clearListe(userId)
+- validateListe(userId) : CRITIQUE - TRANSACTION OBLIGATOIRE
+
+Règles métier CRITIQUES pour validateListe :
+- DOIT utiliser db.transaction() de Drizzle
+- Étapes : (1) Lock liste, (2) Fetch tous items, (3) Validation stock PARALLÈLE (Promise.all), (4) Création mouvements en BATCH, (5) Emails, (6) Clear liste
+- Si erreur ANYWHERE → Rollback auto
+- Paralléliser queries produits (Promise.all, PAS boucle await)
+- Emails envoyés APRÈS commit transaction
+
+## AlertService
+Responsabilités :
+- Création alertes (nouveau produit, retour attendu, stock bas)
+- Gestion notifications
+- Marquage lu/non lu
+
+Méthodes clés :
+- createAlert({type, targetUserId, productId?, movementId?, message})
+- getUserAlerts(userId, filters), getUnreadCount(userId)
+- markAsRead(alertId), markAllAsRead(userId), deleteAlert(alertId)
+- createStockLowAlert(productId), createReturnReminderAlerts()
+
+## EmailService
+Responsabilités :
+- Envoi emails via Resend
+- Templates HTML
+- Logging envois
+- Retry automatique
+
+Méthodes clés :
+- sendValidationEmail(userId, items)
+- sendReturnReminderEmail(userId, loans)
+- sendStockAlertEmail(adminEmail, product)
+- sendWithRetry(emailData, maxRetries=3)
+- logEmail({to, subject, status, error?})
+
+Règles métier :
+- Retry 3× avec backoff exponentiel si échec Resend
+- Logger TOUS les emails (succès + échecs) dans emailLogs table
+- Ne JAMAIS bloquer l'app si email fail (log error, continue)
+
+# MIDDLEWARES
+
+## errorHandler
+Middleware Express qui catch toutes les erreurs
+- Logger erreur avec timestamp, method, path
+- Réponse JSON standardisée : {error: message, stack?: (dev only)}
+- Status codes appropriés (400, 404, 500)
+
+## logger
+Utilitaire de logging structuré
+- Méthodes : info(message, meta?), error(message, error?), warn(message, meta?)
+- Format : [LEVEL] timestamp - message
+- Console.log/error selon niveau
+
+# ROUTES MODULAIRES
+
+Créer fichiers dans /routes/ :
+- products.ts : Import ProductService, routes GET/POST/PUT/DELETE /api/products
+- movements.ts : MovementService, routes mouvements
+- listes.ts : ListeService, routes panier + validation
+- alerts.ts : AlertService, routes notifications
+- admin.ts : Actions admin (validation produits, stats)
+
+Chaque route :
+- try/catch avec next(error) pour errorHandler
+- Validation req.params/body
+- Appel service approprié
+- Réponse JSON
+
+# ORCHESTRATEUR routes.ts
+
+Devient fichier léger (~50 lignes) :
+- Import routes modulaires
+- app.use(logger middleware)
+- app.use('/api/products', productsRouter)
+- app.use('/api/movements', movementsRouter)
+- app.use('/api/liste', listesRouter)
+- app.use('/api/alerts', alertsRouter)
+- app.use('/api/admin', adminRouter)
+- app.use(errorHandler) ← En dernier
+
+# POINTS CRITIQUES
+
+1. Transaction dans ListeService.validateListe
+   Utiliser db.transaction(async (tx) => { ... })
+   Si erreur → rollback automatique
+
+2. Parallélisation queries
+   Promise.all() pour fetch multiple produits
+   PAS de boucle for avec await
+
+3. Cache stock dans ProductService
+   Map interne, TTL 60s, invalidation sur mouvement
+
+4. Gestion erreurs
+   Services throw Error() clairs
+   Routes catch et passent à next(error)
+   errorHandler centralise réponses
+
+5. Pas de régression
+   Mêmes endpoints API
+   Mêmes formats réponse
+   Frontend inchangé
+
+# RÉSULTAT ATTENDU
+
+Structure finale :
+- routes.ts : 1254 lignes → 50 lignes
+- 5 services : ~200 lignes chacun
+- 5 fichiers routes : ~100-150 lignes chacun
+- 2 middlewares : ~50 lignes chacun
+
+Bénéfices :
+- Code lisible et organisé
+- Testable (services isolés)
+- Prêt pour ajout transactions
+- Prêt pour ajout auth middleware
+- Cache stock optimisé
+- Error handling centralisé
+
+# VALIDATION
+
+Tests manuels après refacto :
+1. GET /api/products → Liste produits OK
+2. POST /api/liste/add → Ajouter item OK
+3. POST /api/liste/:userId/validate → Validation OK (CRITIQUE)
+4. GET /api/movements → Historique OK
+5. POST /api/products → Créer produit OK
+
+Vérifier :
+- Aucune régression frontend
+- Logs clairs dans console
+- Erreurs bien catchées
+- Transaction dans validateListe (check code)
+
+# DOCUMENTATION
+
+Créer server/README.md documentant :
+- Rôle de chaque service
+- Structure routes
+- Middlewares disponibles
+- Comment ajouter une feature

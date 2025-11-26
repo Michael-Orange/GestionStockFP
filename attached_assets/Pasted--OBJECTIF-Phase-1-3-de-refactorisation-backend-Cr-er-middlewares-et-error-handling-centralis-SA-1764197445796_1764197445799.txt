@@ -1,0 +1,162 @@
+# OBJECTIF
+Phase 1/3 de refactorisation backend : Créer middlewares et error handling centralisé SANS casser l'existant.
+
+# CONTEXTE
+Refactorisation progressive de routes.ts (1254 lignes)
+Phase 1 : Fondation (middlewares) - Risque faible
+But : Préparer infrastructure pour phases 2 et 3
+
+# SPÉCIFICATIONS
+
+## 1. Logger centralisé (server/middleware/logger.ts)
+
+Créer utilitaire de logging structuré :
+
+Fonctions :
+- info(message, meta?) : Logs informatifs
+- error(message, error?) : Erreurs avec stack trace
+- warn(message, meta?) : Avertissements
+
+Format sortie :
+[NIVEAU] YYYY-MM-DDTHH:mm:ss.sssZ - message [meta/error]
+
+Exemples :
+[INFO] 2025-11-26T22:50:00.123Z - GET /api/products
+[ERROR] 2025-11-26T22:50:01.456Z - Database connection failed [error stack]
+
+Utiliser console.log/error/warn natifs
+Pas de dépendance externe pour l'instant
+
+## 2. Error Handler middleware (server/middleware/errorHandler.ts)
+
+Middleware Express qui catch toutes les erreurs :
+
+Signature : errorHandler(err, req, res, next)
+
+Comportement :
+- Logger erreur avec logger.error() incluant méthode + path + erreur
+- Déterminer status code :
+  * err.statusCode si défini
+  * 400 si message contient "validation", "invalid", "manquant"
+  * 404 si message contient "non trouvé", "not found"
+  * 500 par défaut
+- Réponse JSON standardisée :
+  {
+    error: err.message || 'Erreur serveur',
+    stack: err.stack (seulement si NODE_ENV !== 'production')
+  }
+
+Pas de throw depuis ce middleware, toujours envoyer réponse
+
+## 3. Request Logger middleware (server/middleware/requestLogger.ts)
+
+Middleware qui log chaque requête :
+
+Comportement :
+- Log AVANT traitement : logger.info(`${req.method} ${req.path}`)
+- Optionnel : Mesurer temps réponse
+  * Capturer Date.now() au début
+  * res.on('finish') → logger.info avec durée
+
+Format :
+[INFO] 2025-11-26T22:50:00.123Z - GET /api/products
+[INFO] 2025-11-26T22:50:00.345Z - GET /api/products completed in 222ms
+
+## 4. Intégration dans routes.ts existant
+
+Modifier server/routes.ts pour utiliser nouveaux middlewares :
+
+Import :
+- import { logger } from './middleware/logger'
+- import { errorHandler } from './middleware/errorHandler'
+- import { requestLogger } from './middleware/requestLogger'
+
+Dans registerRoutes() :
+1. Ajouter requestLogger AVANT toutes les routes
+2. Garder TOUTES les routes existantes intactes
+3. Ajouter errorHandler APRÈS toutes les routes (en dernier)
+
+Ordre critique :
+app.use(requestLogger)  ← Premier
+// ... toutes les routes existantes inchangées
+app.use(errorHandler)   ← Dernier
+
+## 5. Remplacer console.log existants (optionnel)
+
+Dans routes.ts, remplacer :
+- console.log() → logger.info()
+- console.error() → logger.error()
+- console.warn() → logger.warn()
+
+Garder logique identique, juste changer appels
+
+# CONTRAINTES CRITIQUES
+
+1. ZÉRO régression fonctionnelle
+   - Tous les endpoints doivent fonctionner exactement pareil
+   - Frontend ne doit rien remarquer
+   - Seulement les logs changent
+
+2. Middlewares additifs
+   - On AJOUTE des middlewares
+   - On ne MODIFIE PAS la logique existante
+   - routes.ts garde ses 1254 lignes pour l'instant
+
+3. Error handler non invasif
+   - Catch erreurs déjà throwées
+   - Pas de changement logique métier
+   - Juste centralise format réponse
+
+4. Tests de non-régression
+   - Même endpoints
+   - Mêmes réponses
+   - Juste logs plus propres
+
+# RÉSULTAT ATTENDU
+
+Structure créée :
+/server
+  /middleware (NOUVEAU)
+    logger.ts (~30 lignes)
+    errorHandler.ts (~25 lignes)
+    requestLogger.ts (~20 lignes)
+  routes.ts (1254 lignes, +5 lignes d'import/use)
+
+Bénéfices immédiats :
+- Logs structurés et exploitables
+- Erreurs catchées centralement
+- Réponses d'erreur cohérentes
+- Fondation pour phases 2 et 3
+
+Aucun changement :
+- Logique métier identique
+- Endpoints identiques
+- Réponses identiques (sauf format erreurs standardisé)
+
+# VALIDATION
+
+Tests manuels (doivent tous passer) :
+1. GET /api/products → Fonctionne + logs dans console
+2. POST /api/liste/add → Fonctionne + logs
+3. GET /api/nonexistant → 404 + log erreur
+4. POST avec données invalides → Erreur catchée + format JSON
+5. Vérifier console : Logs formatés [INFO]/[ERROR]
+
+Critères succès :
+- ✅ Tous endpoints répondent normalement
+- ✅ Erreurs loggées avec format cohérent
+- ✅ Pas de crash serveur
+- ✅ Frontend fonctionne sans modif
+
+# DOCUMENTATION
+
+Créer server/middleware/README.md :
+
+Contenu :
+- Rôle de chaque middleware
+- Ordre d'exécution (requestLogger → routes → errorHandler)
+- Comment utiliser logger dans nouveau code
+- Exemples d'usage
+
+Phase suivante :
+Après validation Phase 1 → Phase 2 (Services isolés)
