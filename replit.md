@@ -42,6 +42,16 @@ The frontend is built with React and TypeScript, leveraging Vite, Wouter for rou
     - `server/services/AlertService.ts` - Notification system for admins and users
     - `server/services/EmailService.ts` - Email dispatch via Resend with retry/exponential backoff (1s, 2s, 4s)
     - Test script: `scripts/test-services.ts` validates all 5 services
+-   **Modular Routes Architecture** (26 Nov 2025): Migrated monolithic routes.ts (1264 lines) to 7 modular files:
+    - `server/routes/auth.ts` - Admin verification with bcrypt password check
+    - `server/routes/alerts.ts` - Notification system (unread, markAsRead)
+    - `server/routes/admin.ts` - Import CSV and init users (SECURED with adminAuth middleware)
+    - `server/routes/categories.ts` - Category and sous-section listing with counts
+    - `server/routes/movements.ts` - Active loans, borrow, return, deposit endpoints
+    - `server/routes/products.ts` - Full product CRUD with stock computation
+    - `server/routes/listes.ts` - User list management with CRITICAL validateListe (géomembrane/JR creation)
+    - `server/routes.ts` - Orchestrator (~50 lines) that mounts all route modules
+    - Backup preserved: `server/routes.ts.backup`
 -   **Database Backup**: Manual backup script at `scripts/backup-database.ts` using pg_dump, saves to `/backups` folder.
 
 ## External Dependencies
