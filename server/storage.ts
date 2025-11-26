@@ -10,7 +10,7 @@ import {
   type EmailLog, type InsertEmailLog
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -21,6 +21,7 @@ export interface IStorage {
   
   // Products
   getProduct(id: number): Promise<Product | undefined>;
+  getProductsByIds(ids: number[]): Promise<Product[]>;
   getAllProducts(): Promise<Product[]>;
   getProductsByStatus(statut: string): Promise<Product[]>;
   getAllUnits(): Promise<string[]>;
@@ -82,6 +83,11 @@ export class DatabaseStorage implements IStorage {
   async getProduct(id: number): Promise<Product | undefined> {
     const [product] = await db.select().from(products).where(eq(products.id, id));
     return product || undefined;
+  }
+
+  async getProductsByIds(ids: number[]): Promise<Product[]> {
+    if (ids.length === 0) return [];
+    return db.select().from(products).where(inArray(products.id, ids));
   }
 
   async getAllProducts(): Promise<Product[]> {
