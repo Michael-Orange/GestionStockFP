@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -45,13 +45,26 @@ async function main() {
     console.log("📊 Extraction des données...");
     console.log("   Tables: users, products, movements, alerts, listes, liste_items, email_logs\n");
 
-    const pgDumpOutput = execSync(
-      `pg_dump "${databaseUrl}" --no-owner --no-acl --clean --if-exists`,
-      {
-        encoding: "utf-8",
-        maxBuffer: 100 * 1024 * 1024,
-      }
-    );
+    const result = spawnSync("pg_dump", [
+      databaseUrl,
+      "--no-owner",
+      "--no-acl", 
+      "--clean",
+      "--if-exists"
+    ], {
+      encoding: "utf-8",
+      maxBuffer: 100 * 1024 * 1024,
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    if (result.status !== 0) {
+      throw new Error(result.stderr || "pg_dump failed with exit code " + result.status);
+    }
+
+    const pgDumpOutput = result.stdout;
 
     const header = `-- =====================================================
 -- BACKUP GESTION STOCK FILTREPLANTE
@@ -78,8 +91,8 @@ async function main() {
     const tableMatches = pgDumpOutput.match(/CREATE TABLE/g);
     const tableCount = tableMatches ? tableMatches.length : 0;
 
-    const insertMatches = pgDumpOutput.match(/INSERT INTO/g);
-    const insertCount = insertMatches ? insertMatches.length : 0;
+    const copyMatches = pgDumpOutput.match(/COPY public\.\w+/g);
+    const copyCount = copyMatches ? copyMatches.length : 0;
 
     console.log("═══════════════════════════════════════════════════════");
     console.log("✅ BACKUP CRÉÉ AVEC SUCCÈS");
@@ -88,7 +101,7 @@ async function main() {
     console.log(`📏 Taille     : ${fileSize}`);
     console.log(`📝 Lignes     : ${lineCount.toLocaleString()}`);
     console.log(`🗃️  Tables     : ${tableCount}`);
-    console.log(`📥 Insertions : ${insertCount.toLocaleString()}`);
+    console.log(`📥 Données    : ${copyCount} tables avec données (format COPY)`);
     console.log("═══════════════════════════════════════════════════════");
     console.log(`\n✅ Backup créé : ${filepath} (${fileSize})\n`);
 
