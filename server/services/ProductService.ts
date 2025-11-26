@@ -41,12 +41,10 @@ class ProductService {
 
     if (filters?.statutOnly) {
       products = await storage.getProductsByStatus(filters.statutOnly);
+    } else if (filters?.actifOnly === false) {
+      products = await storage.getAllProductsIncludingInactive();
     } else {
       products = await storage.getAllProducts();
-    }
-
-    if (filters?.actifOnly !== false) {
-      products = products.filter(p => p.actif);
     }
 
     if (filters?.categorie) {

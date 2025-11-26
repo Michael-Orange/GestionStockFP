@@ -32,11 +32,14 @@ class AlertService {
 
   async getUserAlerts(userId: number, filters?: AlertFilters): Promise<Alert[]> {
     if (filters?.unreadOnly) {
-      return storage.getUnreadAlerts(userId);
+      const unreadAlerts = await storage.getUnreadAlerts(userId);
+      return unreadAlerts.sort((a, b) => 
+        new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime()
+      );
     }
     
-    const unreadAlerts = await storage.getUnreadAlerts(userId);
-    return unreadAlerts.sort((a, b) => 
+    const allAlerts = await storage.getUserAlerts(userId);
+    return allAlerts.sort((a, b) => 
       new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime()
     );
   }

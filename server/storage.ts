@@ -23,6 +23,7 @@ export interface IStorage {
   getProduct(id: number): Promise<Product | undefined>;
   getProductsByIds(ids: number[]): Promise<Product[]>;
   getAllProducts(): Promise<Product[]>;
+  getAllProductsIncludingInactive(): Promise<Product[]>;
   getProductsByStatus(statut: string): Promise<Product[]>;
   getAllUnits(): Promise<string[]>;
   createProduct(product: InsertProduct): Promise<Product>;
@@ -38,6 +39,7 @@ export interface IStorage {
   updateMovement(id: number, data: Partial<InsertMovement>): Promise<Movement>;
   
   // Alerts
+  getUserAlerts(userId: number): Promise<Alert[]>;
   getUnreadAlerts(userId: number): Promise<Alert[]>;
   createAlert(alert: InsertAlert): Promise<Alert>;
   markAlertAsRead(id: number): Promise<Alert>;
@@ -92,6 +94,10 @@ export class DatabaseStorage implements IStorage {
 
   async getAllProducts(): Promise<Product[]> {
     return db.select().from(products).where(eq(products.actif, true));
+  }
+
+  async getAllProductsIncludingInactive(): Promise<Product[]> {
+    return db.select().from(products);
   }
 
   async getProductsByStatus(statut: string): Promise<Product[]> {
@@ -178,6 +184,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Alerts
+  async getUserAlerts(userId: number): Promise<Alert[]> {
+    return db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.utilisateurCibleId, userId));
+  }
+
   async getUnreadAlerts(userId: number): Promise<Alert[]> {
     return db
       .select()

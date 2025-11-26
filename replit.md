@@ -35,6 +35,13 @@ The frontend is built with React and TypeScript, leveraging Vite, Wouter for rou
     - `server/middleware/requestLogger.ts` - HTTP request logging with response timing
     - `server/middleware/errorHandler.ts` - Centralized uncaught error handling with smart status code detection
     - Middleware order in routes.ts: requestLogger → routes → errorHandler
+-   **Business Logic Services** (26 Nov 2025): Refactored backend with dedicated service layer:
+    - `server/services/ProductService.ts` - Product CRUD, stock cache (TTL 60s, 63ms→1ms optimization), géomembrane template/variant creation
+    - `server/services/MovementService.ts` - Movement validation, stock checks, analytics (active loans, overdue, stats)
+    - `server/services/ListeService.ts` - User cart/list management with transactional validation (CRITICAL)
+    - `server/services/AlertService.ts` - Notification system for admins and users
+    - `server/services/EmailService.ts` - Email dispatch via Resend with retry/exponential backoff (1s, 2s, 4s)
+    - Test script: `scripts/test-services.ts` validates all 5 services
 -   **Database Backup**: Manual backup script at `scripts/backup-database.ts` using pg_dump, saves to `/backups` folder.
 
 ## External Dependencies
