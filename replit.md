@@ -27,9 +27,15 @@ The frontend is built with React and TypeScript, leveraging Vite, Wouter for rou
 -   **Géomembrane Soft Delete System** (21 Oct 2025): Géomembranes are automatically deactivated when stock reaches 0 (via consumption or lost items) and hidden from product listings. They are automatically reactivated when stock is deposited. This prevents duplicate géomembrane products while preserving movement history. Detection criteria: `product.longueur && product.largeur && !product.estTemplate`. All stock-mutating endpoints (liste validation, direct borrow, direct deposit) implement this logic consistently.
 
 ### System Design Choices
--   **Database**: PostgreSQL managed via Drizzle ORM.
+-   **Database**: PostgreSQL managed via Drizzle ORM, with separate development and production databases (Neon-hosted).
 -   **Data Import**: Automatic CSV import of product data on application startup.
 -   **Security**: Server-side validation for all data mutations, filtering of unvalidated products, and role-based access control. No password authentication for regular users (internal team context).
+-   **Middleware Architecture** (26 Nov 2025): Centralized middleware infrastructure including:
+    - `server/middleware/logger.ts` - Structured logging with [INFO]/[ERROR]/[WARN] format and ISO timestamps
+    - `server/middleware/requestLogger.ts` - HTTP request logging with response timing
+    - `server/middleware/errorHandler.ts` - Centralized uncaught error handling with smart status code detection
+    - Middleware order in routes.ts: requestLogger → routes → errorHandler
+-   **Database Backup**: Manual backup script at `scripts/backup-database.ts` using pg_dump, saves to `/backups` folder.
 
 ## External Dependencies
 -   **Database**: PostgreSQL (via Neon)
