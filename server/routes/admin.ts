@@ -1,13 +1,46 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { parse } from "csv-parse/sync";
 import { readFileSync } from "fs";
 import { join } from "path";
+import bcrypt from "bcrypt";
 import { storage } from "../storage";
 import { logger } from "../middleware/logger";
 
 const router = Router();
 
-router.post("/import-csv", async (req, res, next) => {
+const adminAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { adminUserId, adminPassword } = req.body;
+    
+    if (!adminUserId || !adminPassword) {
+      return res.status(401).json({ error: "Authentification admin requise" });
+    }
+    
+    const admin = await storage.getUser(adminUserId);
+    
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({ error: "Accès réservé aux administrateurs" });
+    }
+    
+    if (!admin.passwordHash) {
+      return res.status(500).json({ error: "Mot de passe admin non configuré" });
+    }
+    
+    const isValid = await bcrypt.compare(adminPassword, admin.passwordHash);
+    
+    if (!isValid) {
+      logger.warn(`Tentative d'accès admin échouée pour userId ${adminUserId}`);
+      return res.status(401).json({ error: "Mot de passe incorrect" });
+    }
+    
+    logger.info(`Admin ${admin.nom} authentifié pour action admin`);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+router.post("/import-csv", adminAuth, async (req, res, next) => {
   try {
     const csvPath = join(process.cwd(), "attached_assets", "dust_output_1760788353237._1760788811965.csv");
     const csvContent = readFileSync(csvPath, "utf-8");
@@ -72,7 +105,7 @@ router.post("/import-csv", async (req, res, next) => {
   }
 });
 
-router.post("/init-users", async (req, res, next) => {
+router.post("/init-users", adminAuth, async (req, res, next) => {
   try {
     const existingUsers = await storage.getAllUsers();
     
