@@ -19,8 +19,14 @@ import {
   type ValidationProduitData,
   type RefusProduitData
 } from "./services/email-templates";
+import { logger } from "./middleware/logger";
+import { errorHandler } from "./middleware/errorHandler";
+import { requestLogger } from "./middleware/requestLogger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Request logger middleware - logs all incoming requests
+  app.use(requestLogger);
+
   // Helper function to calculate available stock
   const calculateAvailableStock = async (productId: number, currentStock: number) => {
     const allMovements = await storage.getAllMovements();
@@ -1247,6 +1253,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ error: error.message });
     }
   });
+
+  // Error handler middleware - must be last
+  app.use(errorHandler);
 
   const httpServer = createServer(app);
 
