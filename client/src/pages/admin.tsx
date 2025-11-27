@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Edit, AlertTriangle, Download } from "lucide-react";
+import { Check, X, Edit, AlertTriangle, Download, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getNetworkErrorMessage } from "@/lib/queryClient";
 import type { ProductWithStock } from "@/lib/types";
@@ -19,6 +19,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { AdminPasswordModal } from "@/components/admin-password-modal";
 
 export default function Admin() {
   const [, setLocation] = useLocation();
@@ -28,6 +30,15 @@ export default function Admin() {
   const [editingProduct, setEditingProduct] = useState<ProductWithStock | null>(null);
   const [editNom, setEditNom] = useState("");
   const [editStockMin, setEditStockMin] = useState(0);
+
+  const {
+    isAdminVerified,
+    requireAdminAccess,
+    verifyAdminPassword,
+    showPasswordModal,
+    setShowPasswordModal,
+    executePendingAction,
+  } = useAdminAuth();
 
   if (!currentUser || currentUser.role !== "admin") {
     setLocation("/");
@@ -117,12 +128,27 @@ export default function Admin() {
     setEditStockMin(product.stockMinimum);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingProduct) return;
-    updateMutation.mutate({
-      id: editingProduct.id,
-      nom: editNom,
-      stockMinimum: editStockMin,
+    await requireAdminAccess(async () => {
+      await updateMutation.mutateAsync({
+        id: editingProduct.id,
+        nom: editNom,
+        stockMinimum: editStockMin,
+      });
+    });
+  };
+
+  const handleValidate = async (productId: number) => {
+    await requireAdminAccess(async () => {
+      await validateMutation.mutateAsync(productId);
+    });
+  };
+
+  const handleDelete = async (productId: number) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
+    await requireAdminAccess(async () => {
+      await deleteMutation.mutateAsync(productId);
     });
   };
 
@@ -205,7 +231,7 @@ export default function Admin() {
                     <div className="grid grid-cols-3 gap-2">
                       <Button
                         size="sm"
-                        onClick={() => validateMutation.mutate(product.id)}
+                        onClick={() => handleValidate(product.id)}
                         disabled={validateMutation.isPending}
                         className="bg-[hsl(var(--teal-principal))] hover:bg-[hsl(var(--teal-principal))]/90 text-white border-0"
                         data-testid={`button-validate-${product.id}`}
@@ -224,11 +250,7 @@ export default function Admin() {
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => {
-                          if (confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
-                            deleteMutation.mutate(product.id);
-                          }
-                        }}
+                        onClick={() => handleDelete(product.id)}
                         disabled={deleteMutation.isPending}
                         className="bg-[hsl(var(--rouge-urgent))] hover:bg-[hsl(var(--rouge-urgent))]/90 text-white border-0"
                         data-testid={`button-delete-${product.id}`}
@@ -293,6 +315,25 @@ export default function Admin() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Admin Password Modal */}
+      <AdminPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onVerify={(password) => verifyAdminPassword(currentUser.id, password)}
+        onSuccess={executePendingAction}
+      />
+
+      {/* Badge admin vérifié */}
+      {isAdminVerified() && (
+        <div 
+          className="fixed bottom-20 right-4 flex items-center gap-2 px-3 py-2 rounded-full bg-[hsl(var(--teal-principal))] text-white text-sm shadow-lg"
+          data-testid="badge-admin-verified"
+        >
+          <ShieldCheck className="h-4 w-4" />
+          Session admin (24h)
+        </div>
+      )}
     </div>
   );
 }

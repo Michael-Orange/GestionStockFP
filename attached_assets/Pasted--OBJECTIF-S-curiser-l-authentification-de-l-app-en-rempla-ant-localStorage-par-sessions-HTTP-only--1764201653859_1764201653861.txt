@@ -1,0 +1,414 @@
+# OBJECTIF
+Sécuriser l'authentification de l'app en remplaçant localStorage par sessions HTTP-only sécurisées avec middleware centralisé.
+
+# CONTEXTE
+Problème actuel : FAILLE DE SÉCURITÉ CRITIQUE
+- User connecté via localStorage.getItem('currentUserId')
+- N'importe qui peut manipuler : localStorage.setItem('currentUserId', '1') → Devient admin
+- Pas de vérification côté serveur
+- userId passé en paramètres URL non validés
+
+Objectif : Authentification sécurisée impossible à manipuler côté client
+
+# ARCHITECTURE CIBLE
+
+Session-based authentication avec cookies HTTP-only :
+- express-session avec secret fort
+- Cookies sécurisés (httpOnly, secure, sameSite)
+- Middleware auth vérifie session sur TOUTES routes API
+- userId et role injectés dans req (pas depuis params/body client)
+- Routes admin protégées par middleware adminOnly
+
+# SPÉCIFICATIONS
+
+## 1. Installation dépendances
+
+Ajouter à package.json :
+- express-session
+- @types/express-session
+
+npm install express-session @types/express-session
+
+## 2. Configuration session (server/config/session.ts)
+
+Créer configuration session :
+
+Session options :
+- secret : process.env.SESSION_SECRET (générer chaîne aléatoire forte)
+- resave : false
+- saveUninitialized : false
+- cookie options :
+  * httpOnly : true (pas accessible via JavaScript client)
+  * secure : process.env.NODE_ENV === 'production' (HTTPS only en prod)
+  * sameSite : 'lax' (protection CSRF)
+  * maxAge : 24h (86400000 ms)
+
+Store : MemoryStore par défaut (suffit pour 5 users)
+Note : Pour scaling futur, utiliser connect-pg-simple (PostgreSQL session store)
+
+## 3. Middleware authentification (server/middleware/auth.ts)
+
+Créer 3 middlewares :
+
+requireAuth :
+- Vérifie req.session?.userId existe
+- Si non : res.status(401).json({error: "Non authentifié"})
+- Si oui : next()
+
+requireAdmin :
+- Vérifie req.session?.userId existe
+- Fetch user depuis DB/storage
+- Vérifie user.role === 'admin'
+- Si non : res.status(403).json({error: "Accès admin requis"})
+- Si oui : next()
+
+optionalAuth :
+- Vérifie req.session?.userId
+- Si existe : continue
+- Si non : continue quand même (pour routes publiques)
+
+Injecter dans req :
+- req.userId = req.session.userId (TypeScript : étendre interface Request)
+
+## 4. Routes authentification (server/routes/auth.ts)
+
+Modifier/ajouter endpoints :
+
+POST /api/auth/login
+- Body : {userId: number, password: string}
+- Fetch user depuis storage
+- bcrypt.compare(password, user.passwordHash)
+- Si OK :
+  * req.session.userId = user.id
+  * req.session.userRole = user.role
+  * res.json({success: true, user: {id, nom, email, role}})
+- Si fail : res.status(401).json({error: "Identifiants invalides"})
+
+GET /api/auth/me
+- Middleware : requireAuth
+- Récupère req.userId depuis session
+- Fetch user depuis storage
+- Retourne {id, nom, email, role}
+- Permet frontend de récupérer user courant au chargement
+
+POST /api/auth/logout
+- req.session.destroy()
+- res.json({success: true})
+
+POST /api/auth/verify-admin (existant)
+- Remplacer par simple check session.userRole === 'admin'
+- Ou supprimer si login suffit
+
+## 5. Intégration dans server/index.ts
+
+Import express-session et config
+
+Ordre middlewares CRITIQUE :
+1. express.json()
+2. express-session (AVANT routes)
+3. registerRoutes()
+
+Configuration :
+app.use(session(sessionConfig))
+
+TypeScript : Étendre types express-session
+declare module 'express-session' {
+  interface SessionData {
+    userId: number;
+    userRole: string;
+  }
+}
+
+## 6. Protection routes existantes
+
+Modifier orchestrateur routes.ts :
+
+Routes publiques (aucune auth) :
+- GET /api/categories
+- GET /api/categories/:categorie/sous-sections
+
+Routes authentifiées (requireAuth) :
+- Toutes /api/products sauf export-csv
+- Toutes /api/movements
+- Toutes /api/liste
+- Toutes /api/alerts
+
+Routes admin (requireAuth + requireAdmin) :
+- POST /api/products
+- POST /api/products/:id/validate
+- PUT /api/products/:id
+- DELETE /api/products/:id
+- GET /api/products/export-csv
+- POST /api/admin/import-csv
+- POST /api/admin/init-users
+
+Appliquer middlewares :
+- Soit globalement : app.use('/api/products', requireAuth, productsRouter)
+- Soit route par route dans fichiers routes
+
+## 7. Retrait userId des paramètres URL
+
+Modifier routes concernées :
+
+AVANT (INSECURE) :
+- GET /api/liste/:userId → req.params.userId
+- POST /api/liste/:userId/validate → req.params.userId
+- GET /api/alerts/unread/:userId → req.params.userId
+- GET /api/movements/active/:userId → req.params.userId
+
+APRÈS (SECURE) :
+- GET /api/liste → req.userId (depuis session)
+- POST /api/liste/validate → req.userId
+- GET /api/alerts/unread → req.userId
+- GET /api/movements/active/me → req.userId
+
+Admin peut accéder à tous users :
+- GET /api/movements/active?userId=X (optionnel, admin only)
+- Si pas fourni ou pas admin : utilise req.userId
+
+Modifier routes dans :
+- server/routes/listes.ts
+- server/routes/alerts.ts
+- server/routes/movements.ts
+
+## 8. Migration frontend (client/src)
+
+Créer hook useAuth (client/src/hooks/useAuth.ts) :
+
+Hook retourne :
+- user : User | null
+- login(userId, password) : Promise<User>
+- logout() : Promise<void>
+- isAuthenticated : boolean
+- isAdmin : boolean
+
+Utilise TanStack Query :
+- useQuery pour GET /api/auth/me (au mount)
+- useMutation pour login/logout
+
+Stocker user dans Context (client/src/lib/user-context.tsx) :
+- Remplacer currentUserId localStorage par user depuis session
+- Context alimenté par useAuth
+
+Modifier apiRequest (client/src/lib/queryClient.ts) :
+- credentials: 'include' (envoie cookies avec requêtes)
+- Gérer 401 : Rediriger vers login si non authentifié
+
+Créer page Login (client/src/pages/login.tsx) :
+- Form userId + password
+- Appelle hook useAuth.login()
+- Redirect vers home si succès
+- Message erreur si fail
+
+Modifier HomePage (client/src/pages/home.tsx) :
+- Remplacer sélecteur userId par affichage user connecté
+- Bouton logout
+- Si non authentifié : redirect login
+
+Modifier appels API :
+- Supprimer userId des URLs (ex: /api/liste/${userId} → /api/liste)
+- Côté serveur détermine userId depuis session
+
+## 9. Variables d'environnement
+
+Ajouter dans .env :
+SESSION_SECRET=générer_chaîne_aléatoire_forte_64_caractères
+
+Générer secret :
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+Ajouter dans .env.example :
+SESSION_SECRET=your_session_secret_here
+
+Ne JAMAIS committer .env avec vrai secret
+
+## 10. Gestion déconnexion automatique
+
+Session expire après 24h d'inactivité
+
+Frontend détecte 401 :
+- Intercepter dans apiRequest
+- Si 401 : Clear context user + redirect login
+- Toast "Session expirée, reconnectez-vous"
+
+## 11. Tests de sécurité
+
+Vérifier impossibilité manipulation :
+
+Test 1 : Modifier cookie en console
+- Ouvrir DevTools → Application → Cookies
+- Modifier valeur → Requête suivante doit rejeter (401)
+
+Test 2 : Requête sans cookie
+- curl sans credentials → 401
+
+Test 3 : User normal accède route admin
+- Login user non-admin
+- POST /api/products → 403 Forbidden
+
+Test 4 : Session persist après refresh
+- Login → Refresh page → User toujours connecté
+
+Test 5 : Logout détruit session
+- Login → Logout → Requête API → 401
+
+# MIGRATION PROGRESSIVE (OPTIONNEL)
+
+Si breaking change frontend trop gros, migration en 2 temps :
+
+Phase A : Backend
+- Implémenter sessions côté serveur
+- Accepter SOIT session SOIT userId URL (temporaire)
+- Si session existe : utilise session
+- Sinon : utilise userId URL (legacy)
+
+Phase B : Frontend
+- Implémenter login/logout
+- Migrer URLs pour retirer userId
+- Une fois validé : Supprimer legacy backend
+
+Permet tester backend sans casser frontend
+
+# CONTRAINTES CRITIQUES
+
+1. Secret session FORT
+   - Minimum 64 caractères aléatoires
+   - Jamais commité dans Git
+
+2. Cookies sécurisés
+   - httpOnly = true (pas accessible JS)
+   - secure = true en production (HTTPS)
+   - sameSite = 'lax' (protection CSRF)
+
+3. Middleware auth AVANT toutes routes sensibles
+   - Oubli = faille de sécurité
+
+4. TypeScript types étendus
+   - Déclarer SessionData interface
+   - Étendre Request pour req.userId
+
+5. Gestion 401 frontend
+   - Redirect login automatique
+   - UX claire (message session expirée)
+
+# RÉSULTAT ATTENDU
+
+Structure finale :
+/server
+  /config
+    session.ts (configuration session)
+  /middleware
+    auth.ts (requireAuth, requireAdmin, optionalAuth)
+  /routes
+    auth.ts (login, logout, me, verify-admin)
+    [autres routes protégées par middlewares]
+  index.ts (session middleware intégré)
+
+/client/src
+  /hooks
+    useAuth.ts (login, logout, user state)
+  /pages
+    login.tsx (page connexion)
+  /lib
+    user-context.tsx (Context user depuis session)
+
+Sécurité :
+- ✅ Impossible de manipuler userId côté client
+- ✅ Cookies HTTP-only sécurisés
+- ✅ Middleware auth centralisé
+- ✅ Routes admin protégées
+- ✅ Session expiration automatique
+- ✅ Logout proper (destroy session)
+
+Fonctionnalités :
+- ✅ Login avec userId + password
+- ✅ Session persist après refresh
+- ✅ Logout détruit session
+- ✅ 401 si non authentifié
+- ✅ 403 si non admin sur route admin
+- ✅ User context alimenté par session
+
+# VALIDATION
+
+Tests post-implémentation :
+
+Sécurité :
+1. Impossible de modifier userId en console → Vérifié
+2. Cookie httpOnly pas accessible via document.cookie → Vérifié
+3. Requête sans cookie → 401
+4. User non-admin sur route admin → 403
+5. Session expire après 24h → OK
+
+Fonctionnalités :
+1. Login avec credentials → Session créée
+2. GET /api/auth/me → User info
+3. Refresh page → User toujours connecté
+4. Logout → Session détruite, 401 sur requêtes suivantes
+5. Workflow complet app avec session → OK
+
+Frontend :
+1. Page login accessible
+2. Login réussi → Redirect home
+3. Affichage user connecté (nom, role)
+4. Bouton logout fonctionnel
+5. 401 → Redirect login automatique
+
+# DOCUMENTATION
+
+Mettre à jour README.md :
+
+Section Authentication :
+- Session-based avec express-session
+- Cookies HTTP-only sécurisés
+- Middleware auth sur routes sensibles
+- Login : POST /api/auth/login {userId, password}
+- Logout : POST /api/auth/logout
+- Me : GET /api/auth/me
+
+Variables environnement requises :
+- SESSION_SECRET : Secret fort pour signer sessions
+
+Développement :
+- Générer SESSION_SECRET : node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+- Ajouter dans .env
+
+# POINTS D'ATTENTION
+
+1. SESSION_SECRET production
+   - Utiliser variables environnement Replit Secrets
+   - Ne jamais hardcoder
+
+2. HTTPS en production
+   - Cookie secure=true nécessite HTTPS
+   - Replit Deployments = HTTPS par défaut ✅
+
+3. CORS si frontend séparé
+   - credentials: true dans config CORS
+   - origin doit être explicite (pas *)
+
+4. Performance sessions
+   - MemoryStore OK pour 5-10 users
+   - Si > 50 users : Migrer vers connect-pg-simple (PostgreSQL store)
+
+5. Logout tous devices
+   - Session actuelle = 1 device
+   - Pour logout global : Stocker session IDs par user en DB
+
+6. Password requirements
+   - Users actuels ont déjà passwordHash en DB ✅
+   - Si création nouveaux users : bcrypt hash passwords
+
+7. Rate limiting login
+   - Ajouter ultérieurement si besoin
+   - Protège contre brute force
+
+# TEMPS ESTIMÉ
+
+- Configuration session : 30 min
+- Middlewares auth : 30 min
+- Routes auth (login/logout/me) : 1h
+- Protection routes existantes : 1h
+- Frontend (useAuth, login page, migration) : 2-3h
+- Tests sécurité : 1h
+
+Total : 6-8h (1 journée)
