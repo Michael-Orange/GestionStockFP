@@ -1,0 +1,337 @@
+# OBJECTIF
+Permettre ajout items au panier offline, avec affichage immédiat et sync auto reconnexion. Validation liste forcée online.
+
+# CONTEXTE
+Brief combiné terminé : Détection + Cache ✅
+Scope réduit pour limiter risques :
+- Queue SEULEMENT add_to_liste (low risk)
+- Validation forcée online (high risk stock)
+
+# SOLUTION
+
+ActionQueue pour add_to_liste uniquement
+Items pending affichés immédiatement dans panier
+Badge "En attente sync" visible
+Reconnexion → Flush automatique
+Validation liste DÉSACTIVÉE offline
+
+# SPÉCIFICATIONS
+
+## 1. Service ActionQueue (client/src/lib/actionQueue.ts)
+
+Structure simplifiée :
+- Type PendingAction : {id, type: 'add_to_liste', payload, timestamp, userId}
+- Queue array avec localStorage
+- Clé : 'FILTREPLANTE_PENDING_LISTE_ITEMS'
+
+Méthodes :
+- add(payload, userId) : Ajoute action + save
+- flush() : Rejoue POST /api/liste/add pour chaque item
+- processAction(action) : Envoie requête + retry 2× si 500
+- remove(id) : Supprime action individuelle
+- getCount() : Nombre items en attente
+- getPendingItems() : Liste items pour affichage panier
+- clear() : Vide queue
+
+Retry strategy :
+- Erreur 500/502/503 → Retry 2× avec delay 1s, 2s
+- Erreur 400/404 → Pas de retry (skip action)
+- Succès → Remove de queue
+
+## 2. Modification addToListeMutation (panier.tsx)
+
+Logique :
+- Si !isOnline :
+  * actionQueue.add(data, currentUser.id)
+  * Mise à jour state local panier (optimistic)
+  * throw 'QUEUED'
+- Si isOnline :
+  * Envoie normal POST /api/liste/add
+
+onError :
+- Si 'QUEUED' : Toast "Item ajouté (sync à la reconnexion)"
+- Sinon : Toast erreur normale
+
+onSuccess :
+- Refetch liste
+- Item apparaît confirmé
+
+## 3. Affichage items pending dans panier (panier.tsx)
+
+État local :
+- const pendingItems = actionQueue.getPendingItems()
+
+Affichage liste :
+- Items confirmés (depuis API)
+- Items pending (depuis queue) avec badge "⏳ En attente"
+
+UI différence :
+- Items confirmés : Background normal
+- Items pending : Background orange-50 + badge warning
+
+Badge item :
+{item.isPending && (
+  <Badge variant="warning" size="sm">
+    ⏳ En attente de sync
+  </Badge>
+)}
+
+Actions sur items pending :
+- Supprimer possible : Remove de queue
+- Modifier quantité : Update dans queue (pas API)
+
+## 4. Validation liste DÉSACTIVÉE offline
+
+Dans panier.tsx, bouton "Valider liste" :
+
+disabled={
+  validateMutation.isPending || 
+  !isOnline ||  // ← CRITIQUE : Forcé online
+  pendingItemsCount > 0  // ← Empêche validation si items non sync
+}
+
+Tooltip explicatif :
+{!isOnline && "Validation nécessite connexion"}
+{pendingItemsCount > 0 && "Synchronisez d'abord les items en attente"}
+
+Message clair si click :
+"Vous devez être en ligne pour valider la liste"
+
+## 5. Flush automatique reconnexion (useNetworkStatus.ts)
+
+Event 'online' :
+- Vérifie actionQueue.getCount()
+- Si > 0 : Toast "Synchronisation X items..."
+- Appelle actionQueue.flush()
+- Résultat : {success, failed, errors}
+- Si success > 0 : Toast "✅ X items synchronisés"
+- Si failed > 0 : Toast détaillé avec items échoués
+
+Toast erreurs détaillé :
+"⚠️ 2 items n'ont pas pu être ajoutés :
+- Produit X (stock insuffisant)
+- Produit Y (produit supprimé)"
+
+User peut alors décider : Supprimer de queue ou réessayer
+
+## 6. Badge compteur AppHeader
+
+Affichage si pendingCount > 0 :
+- Badge warning "X items en attente"
+- Cliquable → Ouvre page pending actions
+
+## 7. Page admin actions en attente (client/src/pages/pending-actions.tsx)
+
+Liste complète queue :
+- Produit + quantité + timestamp
+- Badge statut : "En attente" | "Échec sync"
+
+Actions par item :
+- Bouton "Supprimer" : Remove de queue
+- Bouton "Réessayer" : Flush individuel
+
+Actions globales :
+- "Synchroniser maintenant" : Flush si online
+- "Vider la queue" : Clear tout (avec confirmation)
+
+Informations :
+- Nombre items en attente
+- Dernière tentative sync (timestamp)
+- Erreurs détaillées si flush échoué
+
+## 8. Gestion erreurs flush détaillée
+
+Dans processAction :
+
+try {
+  await apiRequest('POST', '/api/liste/add', payload);
+  return { success: true };
+} catch (error) {
+  const message = error.message || '';
+  
+  // Produit supprimé/désactivé
+  if (message.includes('non trouvé') || message.includes('inactif')) {
+    return { 
+      success: false, 
+      reason: 'Produit non disponible',
+      skip: true  // Ne pas retry
+    };
+  }
+  
+  // Stock insuffisant
+  if (message.includes('stock insuffisant')) {
+    return {
+      success: false,
+      reason: 'Stock insuffisant',
+      skip: true
+    };
+  }
+  
+  // Erreur serveur temporaire
+  if (error.status >= 500) {
+    throw error;  // Trigger retry
+  }
+  
+  // Autres erreurs
+  return {
+    success: false,
+    reason: message,
+    skip: true
+  };
+}
+
+## 9. Limite queue
+
+Protection :
+- Max 50 items en queue (suffisant pour usage terrain)
+- Auto-suppression items > 7 jours
+- Warning si approche limite
+
+## 10. Persistence robuste
+
+Au mount app :
+- Vérifier intégrité queue localStorage
+- Supprimer actions corrompues
+- Nettoyage auto items anciens
+
+# RÉSULTAT ATTENDU VERSION SIMPLIFIÉE
+
+Fichiers créés :
+- lib/actionQueue.ts (~120 lignes, scope réduit)
+- pages/pending-actions.tsx (~100 lignes, pas optionnelle)
+
+Fichiers modifiés :
+- pages/panier.tsx (~30 lignes logique enqueue + affichage pending)
+- hooks/useNetworkStatus.ts (+25 lignes flush détaillé)
+- components/app-header.tsx (+10 lignes badge)
+
+Comportement :
+
+Scenario ajout items offline :
+1. User offline, parcourt produits
+2. Ajoute 5 items au panier
+3. Items apparaissent immédiatement avec badge "⏳ En attente"
+4. Toast "Item ajouté (sync à la reconnexion)"
+5. Badge AppHeader "5 items en attente"
+6. Bouton "Valider liste" DÉSACTIVÉ avec tooltip explicatif
+
+Scenario reconnexion :
+1. Réseau revient
+2. Toast "Synchronisation 5 items..."
+3. Flush automatique
+4. Si tous OK : Toast "✅ 5 items synchronisés"
+5. Items pending deviennent confirmés (badge disparaît)
+6. Bouton "Valider liste" réactivé
+
+Scenario flush avec erreurs :
+1. 5 items en queue
+2. Reconnexion → Flush
+3. 3 succès, 2 échecs (stock insuffisant)
+4. Toast "✅ 3 items synchronisés"
+5. Toast détaillé "⚠️ 2 items échoués : Produit X (stock insuffisant), Produit Y (supprimé)"
+6. User ouvre page pending actions
+7. Voit 2 items en erreur
+8. Peut supprimer manuellement de queue
+
+Scenario validation bloquée :
+1. User a 3 items pending
+2. Clique "Valider liste"
+3. Bouton disabled avec tooltip "Synchronisez d'abord les items en attente"
+4. User comprend qu'il doit attendre réseau
+5. Reconnexion → Items sync → Validation possible
+
+# AVANTAGES VERSION SIMPLIFIÉE
+
+Sécurité :
+- ✅ Validation liste protégée (online only)
+- ✅ Pas de risque corruption stock
+- ✅ Opérations critiques forcées online
+
+UX :
+- ✅ Items pending visibles immédiatement
+- ✅ User sait exactement ce qui est en attente
+- ✅ Messages erreurs clairs et actionnables
+- ✅ Pas de surprise (validation bloquée = explicite)
+
+Développement :
+- ✅ Scope réduit = moins de risques
+- ✅ Code plus simple (1 seul type action)
+- ✅ Tests plus faciles
+- ✅ Page admin pour debug
+
+Pragmatisme :
+- ✅ Couvre 80% du besoin (ajout items = cas principal)
+- ✅ Évite 100% des risques (validation online)
+- ✅ Extensible plus tard si besoin
+
+# POINTS D'ATTENTION CRITIQUES
+
+1. État local vs serveur
+   - Items pending = optimistic local
+   - Pas de garantie d'ajout avant flush
+   - User doit comprendre "En attente" ≠ "Confirmé"
+
+2. Validation bloquée
+   - User peut être frustré si items pending bloquent validation
+   - Mais c'est plus sûr que valider avec stock potentiellement changé
+   - Message clair compense frustration
+
+3. Flush séquentiel
+   - 50 items = 50 requêtes séquentielles
+   - Peut prendre 10-30s
+   - Toast progression rassure user
+
+4. Gestion offline prolongé
+   - Si user offline 24h+ : Items pending peuvent devenir obsolètes
+   - Auto-suppression 7 jours protège
+   - Page admin permet nettoyage manuel
+
+5. Retry strategy
+   - 2 retry max sur 500 errors
+   - Évite boucle infinie si serveur down
+   - User peut réessayer manuellement depuis page admin
+
+# VALIDATION
+
+Tests :
+
+1. Offline → Ajouter 3 items → Apparaissent avec badge "En attente"
+2. localStorage queue = 3
+3. Badge AppHeader "3 items en attente"
+4. Bouton "Valider" désactivé avec tooltip
+5. Online → Flush auto → Toast "Synchronisation..."
+6. Items confirmés, badges disparaissent
+7. Bouton "Valider" réactivé
+
+Tests erreurs :
+1. Ajouter item pour produit avec stock insuffisant
+2. Reconnexion → Flush
+3. Toast détaillé "Stock insuffisant pour Produit X"
+4. Page pending actions affiche erreur
+5. User supprime item de queue manuellement
+
+Tests edge cases :
+1. Queue 50 items → Warning limite
+2. Ajout 51ème → Erreur propre
+3. Items > 7 jours → Auto-supprimés au mount
+
+Critères succès :
+- ✅ Items pending affichés immédiatement
+- ✅ Badge "En attente" clair
+- ✅ Validation bloquée offline explicite
+- ✅ Flush automatique fonctionne
+- ✅ Erreurs détaillées claires
+- ✅ Page admin fonctionnelle
+- ✅ Aucune perte données
+- ✅ Aucun risque corruption stock
+
+# TEMPS ESTIMÉ VERSION SIMPLIFIÉE
+
+Service ActionQueue : 45 min (scope réduit)
+Modification panier.tsx : 1h (affichage pending)
+Flush avec retry : 30 min
+Badge + feedback erreurs : 30 min
+Page pending actions : 45 min
+Tests : 30 min
+
+Total : 3h30 (identique mais code plus simple)
