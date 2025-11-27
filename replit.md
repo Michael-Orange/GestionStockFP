@@ -19,6 +19,11 @@ The frontend is built with React and TypeScript, leveraging Vite, Wouter for rou
 -   **Stock Management**: Real-time stock calculation, color-coded indicators for stock levels (OK, Low, Empty), and intelligent filters.
 -   **Loan Management**: Distinguishes between "Prêt" (loan) and "Consommation" (consumption), with color-coded badges for loan duration.
 -   **Admin Validation**: Michael and Marine can validate new products and manage pending items via a password-protected admin interface.
+-   **Admin Password Protection** (27 Nov 2025): Sensitive admin actions (validate, edit, delete products) require password verification ("Fp2025"). Implemented with:
+    - `client/src/hooks/useAdminAuth.ts` - Hook with localStorage 24h cache, requireAdminAccess wrapper pattern
+    - `client/src/components/admin-password-modal.tsx` - Password dialog with error handling
+    - localStorage key: "filtreplante_admin_verified_until" stores expiration timestamp
+    - "Session admin (24h)" badge displayed after verification
 -   **Product Creation**: A reusable component allows creation of new products from various pages, automatically setting their status to "en_attente" (pending admin validation). Dynamic dropdowns for categories, sub-sections, and units are supported.
 -   **Unified Deposit Page**: Consolidates "Return" and "Deposit" functionalities into a single page with three tabs: "Mes emprunts" (My loans), "Tous les emprunts" (All loans), and "Ajouter du stock" (Add stock). This page also allows adding products with zero stock.
 -   **Grouped Actions (Lists)**: Renamed from "Panier" (cart), this system allows users to group multiple "prendre" (take), "rendre" (return), and "déposer" (deposit) actions into a single list for validation. A global counter badge indicates pending actions.
