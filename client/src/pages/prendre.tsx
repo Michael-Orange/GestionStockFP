@@ -25,6 +25,7 @@ import { CacheBadge } from "@/components/cache-badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { actionQueue } from "@/lib/actionQueue";
 import type { ProductWithStock, CategoryInfo } from "@/lib/types";
 
 type ViewMode = "categories" | "sous-sections" | "produits";
@@ -93,9 +94,9 @@ export default function Prendre() {
     },
   });
 
-  // Mutation pour ajouter à la liste
+  // Mutation pour ajouter à la liste (utilisée uniquement en mode online)
   const addToListeMutation = useMutation({
-    mutationFn: async (data: { produitId: number; quantite: number; typeAction: string; typeEmprunt: string }) => {
+    mutationFn: async (data: { produitId: number; quantite: number; typeAction: string; typeEmprunt: string; productNom: string }) => {
       return apiRequest("POST", "/api/liste/add", {
         userId: currentUserId,
         item: data,
@@ -107,7 +108,6 @@ export default function Prendre() {
         title: "Ajouté à la liste",
         description: `${selectedProduct?.nom} × ${quantite} ${selectedProduct?.unite || ''}`,
       });
-      // Reset pour continuer à ajouter d'autres produits
       setSelectedProduct(null);
       setQuantite(1);
     },
@@ -190,11 +190,42 @@ export default function Prendre() {
   const handleAddToListe = () => {
     if (!selectedProduct) return;
     
+    const currentlyOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    
+    if (!currentlyOnline) {
+      const result = actionQueue.add(
+        {
+          productId: selectedProduct.id,
+          productNom: selectedProduct.nom,
+          quantite,
+          typeAction: "prendre",
+        },
+        currentUserId!
+      );
+      
+      if (result.success) {
+        toast({
+          title: "Ajouté à la liste (hors ligne)",
+          description: `${selectedProduct.nom} sera synchronisé à la reconnexion`,
+        });
+        setSelectedProduct(null);
+        setQuantite(1);
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.error || "Impossible d'ajouter à la file d'attente",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    
     addToListeMutation.mutate({
       produitId: selectedProduct.id,
       quantite,
       typeAction: "prendre",
       typeEmprunt,
+      productNom: selectedProduct.nom,
     });
   };
 
@@ -341,13 +372,13 @@ export default function Prendre() {
                 className="w-full"
                 size="lg"
                 onClick={handleAddToListe}
-                disabled={addToListeMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1 || !isOnline}
+                disabled={addToListeMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
                 data-testid="button-add-to-cart"
               >
                 {!isOnline ? (
                   <>
                     <WifiOff className="h-5 w-5 mr-2" />
-                    Hors ligne
+                    {addToListeMutation.isPending ? "Ajout..." : "AJOUTER (HORS LIGNE)"}
                   </>
                 ) : (
                   <>

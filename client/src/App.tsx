@@ -13,6 +13,7 @@ import Deposer from "@/pages/deposer";
 import Stock from "@/pages/stock";
 import Admin from "@/pages/admin";
 import Liste from "@/pages/panier";
+import PendingActions from "@/pages/pending-actions";
 
 cleanOldCache();
 
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/stock" component={Stock} />
       <Route path="/admin" component={Admin} />
       <Route path="/panier" component={Liste} />
+      <Route path="/pending-actions" component={PendingActions} />
       <Route component={NotFound} />
     </Switch>
   );

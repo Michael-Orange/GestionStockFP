@@ -17,6 +17,7 @@ import { CacheBadge } from "@/components/cache-badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { actionQueue } from "@/lib/actionQueue";
 import type { ProductWithStock, CategoryInfo, ActiveLoan } from "@/lib/types";
 
 type ViewMode = "categories" | "sous-sections" | "produits";
@@ -107,7 +108,7 @@ export default function Deposer() {
   });
 
   const addDepositToListeMutation = useMutation({
-    mutationFn: async (data: { produitId: number; quantite: number; longueur?: number; largeur?: number; couleur?: string }) => {
+    mutationFn: async (data: { produitId: number; quantite: number; longueur?: number; largeur?: number; couleur?: string; productNom: string }) => {
       return apiRequest("POST", "/api/liste/add", {
         userId: currentUserId,
         item: {
@@ -215,12 +216,49 @@ export default function Deposer() {
     
     const finalCouleur = couleur === "Autre" ? couleurAutre : couleur;
     
+    const currentlyOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    
+    if (!currentlyOnline) {
+      const result = actionQueue.add(
+        {
+          productId: selectedProduct.id,
+          productNom: selectedProduct.nom,
+          quantite: depositQuantite,
+          typeAction: "deposer",
+          longueur: longueur || undefined,
+          largeur: largeur || undefined,
+        },
+        currentUserId!
+      );
+      
+      if (result.success) {
+        toast({
+          title: "Ajouté à la liste (hors ligne)",
+          description: `${selectedProduct.nom} sera synchronisé à la reconnexion`,
+        });
+        setSelectedProduct(null);
+        setDepositQuantite(1);
+        setLongueur("");
+        setLargeur("");
+        setCouleur("");
+        setCouleurAutre("");
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.error || "Impossible d'ajouter à la file d'attente",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    
     addDepositToListeMutation.mutate({
       produitId: selectedProduct.id,
       quantite: depositQuantite,
       longueur: longueur || undefined,
       largeur: largeur || undefined,
       couleur: finalCouleur || undefined,
+      productNom: selectedProduct.nom,
     });
   };
 
@@ -864,13 +902,13 @@ export default function Deposer() {
                   className="w-full"
                   size="lg"
                   onClick={handleAddDepositToListe}
-                  disabled={addDepositToListeMutation.isPending || depositQuantite < 1 || !isOnline}
+                  disabled={addDepositToListeMutation.isPending || depositQuantite < 1}
                   data-testid="button-add-deposit-to-liste"
                 >
                   {!isOnline ? (
                     <>
                       <WifiOff className="h-5 w-5 mr-2" />
-                      Hors ligne
+                      {addDepositToListeMutation.isPending ? "Ajout..." : "AJOUTER (HORS LIGNE)"}
                     </>
                   ) : (
                     addDepositToListeMutation.isPending ? "Ajout..." : "Ajouter à ma liste"
