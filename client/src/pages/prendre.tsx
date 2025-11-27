@@ -18,10 +18,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Package, Minus, Plus, ShoppingCart } from "lucide-react";
+import { Search, Package, Minus, Plus, ShoppingCart, WifiOff } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import { CreateProductForm } from "@/components/create-product-form";
+import { CacheBadge } from "@/components/cache-badge";
 import { useToast } from "@/hooks/use-toast";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock, CategoryInfo } from "@/lib/types";
 
@@ -31,6 +33,7 @@ export default function Prendre() {
   const [, setLocation] = useLocation();
   const { currentUserId, currentUser } = useCurrentUser();
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   const [viewMode, setViewMode] = useState<ViewMode>("categories");
   const [selectedCategorie, setSelectedCategorie] = useState<string>("");
@@ -325,17 +328,33 @@ export default function Prendre() {
               </CardContent>
             </Card>
 
+            {/* Badge cache si offline */}
+            {!isOnline && (
+              <div className="flex justify-center">
+                <CacheBadge />
+              </div>
+            )}
+
             {/* Boutons d'action */}
             <div>
               <Button
                 className="w-full"
                 size="lg"
                 onClick={handleAddToListe}
-                disabled={addToListeMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1}
+                disabled={addToListeMutation.isPending || quantite > selectedProduct.stockDisponible || quantite < 1 || !isOnline}
                 data-testid="button-add-to-cart"
               >
-                <ShoppingCart className="h-5 w-5 mr-2" />
-                {addToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
+                {!isOnline ? (
+                  <>
+                    <WifiOff className="h-5 w-5 mr-2" />
+                    Hors ligne
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    {addToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
+                  </>
+                )}
               </Button>
             </div>
           </div>

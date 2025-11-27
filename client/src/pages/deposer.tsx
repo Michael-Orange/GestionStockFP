@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Plus, Minus, Search } from "lucide-react";
+import { Package, Plus, Minus, Search, WifiOff } from "lucide-react";
 import { StockBadge, StockIndicatorDot } from "@/components/stock-badge";
 import { LoanDurationBadge } from "@/components/loan-duration-badge";
 import { CreateProductForm } from "@/components/create-product-form";
+import { CacheBadge } from "@/components/cache-badge";
 import { useToast } from "@/hooks/use-toast";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ProductWithStock, CategoryInfo, ActiveLoan } from "@/lib/types";
 
@@ -23,6 +25,7 @@ export default function Deposer() {
   const [, setLocation] = useLocation();
   const { currentUserId, currentUser } = useCurrentUser();
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   // Tab state
   const [activeTab, setActiveTab] = useState("mes-emprunts");
@@ -418,14 +421,28 @@ export default function Deposer() {
                   </CardContent>
                 </Card>
 
+                {/* Badge cache si offline */}
+                {!isOnline && (
+                  <div className="flex justify-center">
+                    <CacheBadge />
+                  </div>
+                )}
+
                 <Button
                   className="w-full"
                   size="lg"
                   onClick={handleReturn}
-                  disabled={addReturnToListeMutation.isPending || (returnQuantite + lostQuantite) <= 0 || (returnQuantite + lostQuantite) > selectedLoan.quantite}
+                  disabled={addReturnToListeMutation.isPending || (returnQuantite + lostQuantite) <= 0 || (returnQuantite + lostQuantite) > selectedLoan.quantite || !isOnline}
                   data-testid="button-add-return-to-list"
                 >
-                  {addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
+                  {!isOnline ? (
+                    <>
+                      <WifiOff className="h-5 w-5 mr-2" />
+                      Hors ligne
+                    </>
+                  ) : (
+                    addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"
+                  )}
                 </Button>
               </div>
             ) : (
@@ -588,14 +605,28 @@ export default function Deposer() {
                   </CardContent>
                 </Card>
 
+                {/* Badge cache si offline */}
+                {!isOnline && (
+                  <div className="flex justify-center">
+                    <CacheBadge />
+                  </div>
+                )}
+
                 <Button
                   className="w-full"
                   size="lg"
                   onClick={handleReturn}
-                  disabled={addReturnToListeMutation.isPending || (returnQuantite + lostQuantite) <= 0 || (returnQuantite + lostQuantite) > selectedLoan.quantite}
+                  disabled={addReturnToListeMutation.isPending || (returnQuantite + lostQuantite) <= 0 || (returnQuantite + lostQuantite) > selectedLoan.quantite || !isOnline}
                   data-testid="button-add-return-to-list"
                 >
-                  {addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"}
+                  {!isOnline ? (
+                    <>
+                      <WifiOff className="h-5 w-5 mr-2" />
+                      Hors ligne
+                    </>
+                  ) : (
+                    addReturnToListeMutation.isPending ? "Ajout..." : "AJOUTER À MA LISTE"
+                  )}
                 </Button>
               </div>
             ) : (
@@ -822,14 +853,28 @@ export default function Deposer() {
                   </CardContent>
                 </Card>
 
+                {/* Badge cache si offline */}
+                {!isOnline && (
+                  <div className="flex justify-center">
+                    <CacheBadge />
+                  </div>
+                )}
+
                 <Button
                   className="w-full"
                   size="lg"
                   onClick={handleAddDepositToListe}
-                  disabled={addDepositToListeMutation.isPending || depositQuantite < 1}
+                  disabled={addDepositToListeMutation.isPending || depositQuantite < 1 || !isOnline}
                   data-testid="button-add-deposit-to-liste"
                 >
-                  {addDepositToListeMutation.isPending ? "Ajout..." : "Ajouter à ma liste"}
+                  {!isOnline ? (
+                    <>
+                      <WifiOff className="h-5 w-5 mr-2" />
+                      Hors ligne
+                    </>
+                  ) : (
+                    addDepositToListeMutation.isPending ? "Ajout..." : "Ajouter à ma liste"
+                  )}
                 </Button>
               </div>
             ) : searchQuery ? (

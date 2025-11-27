@@ -12,10 +12,12 @@ import categoriesRoutes from "./routes/categories";
 import movementsRoutes from "./routes/movements";
 import productsRoutes from "./routes/products";
 import listesRoutes from "./routes/listes";
+import healthRoutes from "./routes/health";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use(requestLogger);
 
+  app.use("/api/health", healthRoutes);
   app.use("/api/auth", authRoutes);
   app.use("/api/alerts", alertsRoutes);
   app.use("/api", adminRoutes);

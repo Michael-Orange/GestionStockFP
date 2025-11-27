@@ -1,0 +1,207 @@
+# OBJECTIF
+Détecter statut réseau (online/offline) et afficher indicateur visuel clair pour informer utilisateurs en temps réel.
+
+# CONTEXTE
+Zone stock = 4G instable (connexion aléatoire)
+Problème actuel : User ne sait pas si réseau OK/KO, clique sans retour
+Besoin : Feedback visuel immédiat + désactivation actions impossibles offline
+
+# SOLUTION
+
+Hook useNetworkStatus détecte online/offline
+Bannière visible en haut si offline
+Toast notification à la reconnexion
+Désactivation boutons critiques si offline
+
+# SPÉCIFICATIONS
+
+## 1. Hook useNetworkStatus (client/src/hooks/useNetworkStatus.ts)
+
+État :
+- isOnline : boolean (état réseau actuel)
+- wasOffline : boolean (pour détecter reconnexion)
+
+Détection :
+- navigator.onLine (état initial)
+- Event listeners window : 'online' et 'offline'
+
+Comportement :
+- Au mount : Lit navigator.onLine
+- Event 'offline' → setIsOnline(false), setWasOffline(true)
+- Event 'online' → setIsOnline(true)
+  * Si wasOffline : Afficher toast "Connexion rétablie"
+  * setWasOffline(false)
+
+Cleanup :
+- removeEventListener au unmount
+
+Hook retourne :
+{ isOnline, wasOffline }
+
+## 2. Bannière offline (client/src/components/offline-banner.tsx)
+
+Composant simple :
+
+Props : aucune (utilise hook directement)
+
+Comportement :
+- const { isOnline } = useNetworkStatus()
+- Si !isOnline : Affiche bannière
+- Si isOnline : Return null
+
+UI :
+- Div fixed top-0 w-full z-50
+- Background orange-500 (couleur alerte FiltrePlante)
+- Padding p-2
+- Text white, centré, text-sm
+- Icône WifiOff (lucide-react)
+- Message : "⚠️ Hors ligne - Vos actions seront synchronisées à la reconnexion"
+
+Animation optionnelle :
+- Slide down avec framer-motion ou CSS transition
+
+## 3. Toast reconnexion (client/src/hooks/useNetworkStatus.ts)
+
+Dans hook, event 'online' :
+
+if (wasOffline) {
+  toast({
+    title: "Connexion rétablie",
+    description: "Vous êtes de nouveau en ligne",
+    variant: "default",
+    duration: 3000
+  });
+}
+
+Utilise toast existant de shadcn/ui
+
+## 4. Intégration AppLayout
+
+Dans client/src/App.tsx ou layout principal :
+
+Import OfflineBanner :
+import { OfflineBanner } from "@/components/offline-banner";
+
+Ajouter en haut du layout (avant AppHeader) :
+<OfflineBanner />
+<AppHeader ... />
+{children}
+
+Visible sur toutes les pages
+
+## 5. Désactivation boutons critiques
+
+Dans pages avec actions réseau (panier.tsx, prendre.tsx, deposer.tsx, rendre.tsx) :
+
+Import hook :
+const { isOnline } = useNetworkStatus();
+
+Modifier boutons :
+
+Bouton "Valider liste" (panier.tsx) :
+<Button
+  disabled={validateListeMutation.isPending || !isOnline}
+  onClick={handleValidate}
+>
+  {!isOnline 
+    ? "Hors ligne" 
+    : validateListeMutation.isPending 
+      ? "Validation..." 
+      : "Valider la liste"
+  }
+</Button>
+
+Bouton "Ajouter au panier" :
+<Button
+  disabled={addMutation.isPending || !isOnline}
+>
+  {!isOnline ? "Hors ligne" : "Ajouter"}
+</Button>
+
+Même logique pour autres actions critiques (emprunter, rendre, déposer)
+
+## 6. Badge statut réseau (optionnel)
+
+Dans AppHeader, afficher badge discret :
+
+{!isOnline && (
+  <Badge variant="destructive" className="gap-1">
+    <WifiOff className="h-3 w-3" />
+    Hors ligne
+  </Badge>
+)}
+
+Ou version positive si online :
+{isOnline && (
+  <Badge variant="outline" className="gap-1">
+    <Wifi className="h-3 w-3" />
+    En ligne
+  </Badge>
+)}
+
+## 7. Message UX dans listes vides
+
+Si offline + liste produits vide :
+
+{!isOnline && products.length === 0 && (
+  <div className="text-center p-8 text-muted-foreground">
+    Mode hors ligne - Reconnectez-vous pour charger les produits
+  </div>
+)}
+
+# RÉSULTAT ATTENDU
+
+Fichiers créés :
+- client/src/hooks/useNetworkStatus.ts (~40 lignes)
+- client/src/components/offline-banner.tsx (~30 lignes)
+
+Fichiers modifiés :
+- client/src/App.tsx (+2 lignes import + OfflineBanner)
+- client/src/pages/panier.tsx (~5 lignes désactivation boutons)
+- client/src/pages/prendre.tsx (~3 lignes désactivation)
+- client/src/pages/deposer.tsx (~3 lignes désactivation)
+- client/src/pages/rendre.tsx (~3 lignes désactivation)
+
+Comportement :
+- ✅ Bannière orange visible si offline
+- ✅ Toast vert à la reconnexion
+- ✅ Boutons critiques désactivés offline
+- ✅ Messages UX clairs
+- ✅ User informé en temps réel
+
+UX :
+- User clique bouton offline → Rien ne se passe + texte "Hors ligne"
+- User voit bannière → Comprend immédiatement le problème
+- Connexion revient → Toast confirmation + boutons réactivés
+
+# VALIDATION
+
+Tests manuels :
+
+1. Ouvrir app avec réseau OK → Pas de bannière
+2. DevTools → Network → Offline → Bannière apparaît + boutons désactivés
+3. Cliquer bouton "Valider" offline → Aucune action (disabled)
+4. DevTools → Network → Online → Toast "Connexion rétablie" + bannière disparaît
+5. Boutons réactivés automatiquement
+
+Tests sur mobile terrain :
+1. Aller en zone faible réseau
+2. Perte réseau → Bannière apparaît
+3. Retour réseau → Toast confirmation
+
+Critères succès :
+- ✅ Détection online/offline fonctionne
+- ✅ Bannière visible immédiatement si offline
+- ✅ Toast à la reconnexion
+- ✅ Boutons désactivés correctement
+- ✅ Messages UX clairs
+
+# TEMPS ESTIMÉ
+
+Hook useNetworkStatus : 20 min
+Bannière OfflineBanner : 15 min
+Intégration layout : 5 min
+Désactivation boutons : 30 min
+Tests : 20 min
+
+Total : 1h30

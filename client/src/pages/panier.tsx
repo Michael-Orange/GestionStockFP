@@ -3,10 +3,12 @@ import { useCurrentUser } from "@/lib/user-context";
 import { AppHeader } from "@/components/app-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, ShoppingCart, CheckCircle2 } from "lucide-react";
+import { Trash2, ShoppingCart, CheckCircle2, WifiOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient, getNetworkErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { CacheBadge } from "@/components/cache-badge";
 import { type ListeItem, type Product, type Movement } from "@shared/schema";
 
 type ListeItemWithDetails = ListeItem & {
@@ -18,6 +20,7 @@ export default function Liste() {
   const { currentUserId } = useCurrentUser();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   // Get liste with items
   const { data, isLoading } = useQuery<{ liste: any; items: ListeItemWithDetails[] }>({
@@ -302,27 +305,43 @@ export default function Liste() {
               </div>
             )}
 
+            {/* Badge cache si offline */}
+            {!isOnline && (
+              <div className="flex justify-center">
+                <CacheBadge />
+              </div>
+            )}
+
             {/* Actions */}
             <div className="space-y-3">
               <Button
                 onClick={() => validateListeMutation.mutate()}
-                disabled={validateListeMutation.isPending}
+                disabled={validateListeMutation.isPending || !isOnline}
                 className="w-full h-14 text-lg"
                 data-testid="button-validate"
               >
-                <CheckCircle2 className="h-5 w-5 mr-2" />
-                {validateListeMutation.isPending ? "Validation..." : "Valider la liste"}
+                {!isOnline ? (
+                  <>
+                    <WifiOff className="h-5 w-5 mr-2" />
+                    Hors ligne
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-5 w-5 mr-2" />
+                    {validateListeMutation.isPending ? "Validation..." : "Valider la liste"}
+                  </>
+                )}
               </Button>
 
               <Button
                 variant="destructive"
                 onClick={() => clearListeMutation.mutate()}
-                disabled={clearListeMutation.isPending}
+                disabled={clearListeMutation.isPending || !isOnline}
                 className="w-full h-12"
                 data-testid="button-clear"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Vider la liste
+                {!isOnline ? "Hors ligne" : "Vider la liste"}
               </Button>
             </div>
           </>

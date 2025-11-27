@@ -1,0 +1,292 @@
+# OBJECTIF
+Détecter statut réseau et permettre consultation offline avec cache persistant. Deux features indissociables pour UX optimale en zone 4G instable.
+
+# CONTEXTE
+Zone stock = réseau capricieux
+Besoin : User informé + app utilisable offline (consultation)
+
+# SOLUTION
+
+Détection online/offline avec feedback visuel
+Cache TanStack Query dans localStorage (24h)
+Consultation produits/stock possible offline
+Sync automatique à la reconnexion
+
+# SPÉCIFICATIONS
+
+## 1. Hook détection réseau (client/src/hooks/useNetworkStatus.ts)
+
+Détection :
+- navigator.onLine (état initial)
+- Event listeners : 'online' et 'offline'
+- Ping léger optionnel vers /api/health (confirme API accessible, pas juste WiFi connecté)
+
+État retourné :
+- isOnline : boolean
+- wasOffline : boolean (pour toast reconnexion)
+
+Comportement reconnexion :
+- Toast "Connexion rétablie"
+- Trigger refetch queries TanStack Query
+- Flush action queue (Brief 3)
+
+Cleanup listeners au unmount
+
+## 2. Bannière offline (client/src/components/offline-banner.tsx)
+
+Affichage conditionnel :
+- Si !isOnline : Visible
+- Si isOnline : Masquée
+
+UI :
+- Fixed top, full width, z-index élevé
+- Background orange-500 (alerte FiltrePlante)
+- Icône WifiOff + texte clair
+- Message : "Hors ligne - Vos actions seront synchronisées"
+- Animation transition CSS simple (pas framer-motion pour légèreté)
+
+Intégration : En haut du layout (avant AppHeader)
+
+## 3. Configuration cache TanStack Query (client/src/lib/queryClient.ts)
+
+Installation :
+- @tanstack/react-query-persist-client
+
+Configuration persister :
+- Storage : localStorage
+- Clé : 'FILTREPLANTE_QUERY_CACHE'
+- MaxAge : 24h
+- Dehydrate uniquement queries GET (consultation)
+
+Queries à cacher :
+- /api/products
+- /api/categories
+- /api/movements
+- /api/liste
+
+Queries à NE PAS cacher :
+- Mutations (POST/PUT/DELETE)
+
+## 4. Stratégie cache-first pour consultation
+
+Options queries consultation :
+- staleTime : 5 min (frais pendant 5 min)
+- gcTime : 24h (gardé 24h en cache)
+- networkMode : 'offlineFirst' (utilise cache si offline)
+- refetchOnReconnect : true
+- refetchOnWindowFocus : true
+
+Mutations :
+- networkMode : 'online' (nécessite réseau)
+- Géré par queue actions (Brief 3)
+
+## 5. Badge "Données en cache"
+
+Dans pages consultation (stock.tsx, prendre.tsx) :
+
+Affichage si offline ET données en cache :
+- Icône Database
+- Texte : "Données en cache (dernière sync : X)"
+- Couleur orange (cohérent bannière)
+- Utilise date-fns pour formatage relatif
+
+## 6. Désactivation boutons actions critiques
+
+Boutons à désactiver si offline :
+- "Valider liste" (panier.tsx)
+- "Ajouter au panier" si mutation online uniquement
+- Autres mutations (emprunter, rendre, déposer)
+
+État bouton :
+- disabled si !isOnline OU isPending
+- Texte change : "Hors ligne" au lieu de "Valider"
+
+Note : Brief 3 permettra enqueue actions, donc boutons redeviennent actifs
+
+## 7. Invalidation intelligente reconnexion
+
+Event 'online' dans useNetworkStatus :
+- Refetch toutes queries stale
+- Toast "Synchronisation..."
+- Toast succès après refetch
+
+Optimisation :
+- Refetch seulement queries utilisées récemment
+- Pas de refetch massif inutile
+
+## 8. Nettoyage cache ancien
+
+Au démarrage app :
+- Vérifier âge cache localStorage
+- Si > 24h : Clear cache
+- Évite données obsolètes
+
+## 9. Gestion première utilisation offline
+
+Si offline ET aucun cache :
+- Message : "Première utilisation hors ligne - Connectez-vous une fois"
+- Impossible de consulter (normal, pas de données)
+
+Dès première connexion :
+- Données chargées + cachées
+- Prochaines utilisations offline OK
+
+## 10. Ping API optionnel (robustesse++)
+
+navigator.onLine détecte WiFi, pas API réelle
+
+Amélioration optionnelle :
+- Endpoint GET /api/health (backend minimal)
+- Ping toutes les 30s si online
+- Si ping fail : Considère offline même si navigator.onLine=true
+- Plus robuste pour détecter problèmes API
+
+Backend simple :
+- GET /api/health retourne {status: 'ok'}
+- Pas de logique, juste confirmation serveur accessible
+
+## 11. Badge statut réseau AppHeader (optionnel)
+
+Badge discret coin haut droit :
+- Si offline : Badge rouge "Hors ligne"
+- Si online : Badge vert "En ligne" (ou masqué par défaut)
+
+Permet user voir statut en un coup d'œil
+
+## 12. Toast reconnexion avec progression
+
+À la reconnexion :
+- Toast immédiat "Connexion rétablie"
+- Refetch queries en arrière-plan
+- Toast mise à jour "Données synchronisées" après refetch
+- UX rassurante, user sait que ça travaille
+
+# RÉSULTAT ATTENDU
+
+Fichiers créés :
+- hooks/useNetworkStatus.ts (détection + refetch)
+- components/offline-banner.tsx (bannière orange)
+- Optionnel : routes/health.ts backend (ping API)
+
+Fichiers modifiés :
+- lib/queryClient.ts (config persistence + cache-first)
+- App.tsx (intégration bannière + nettoyage cache)
+- pages/stock.tsx, prendre.tsx, panier.tsx (badges cache + désactivation boutons)
+- components/app-header.tsx (badge statut optionnel)
+
+Dépendances :
+- @tanstack/react-query-persist-client
+
+Comportement combiné :
+
+Scenario online :
+- Bannière masquée
+- Queries fetch normalement
+- Cache mis à jour
+- Boutons actifs
+
+Scenario perte réseau :
+- Bannière orange apparaît
+- Queries utilisent cache
+- Badge "Données en cache" visible
+- Boutons critiques désactivés
+- Consultation continue (produits, stock visibles)
+
+Scenario reconnexion :
+- Toast "Connexion rétablie"
+- Refetch queries automatique
+- Toast "Données synchronisées"
+- Bannière disparaît
+- Boutons réactivés
+
+Scenario première utilisation offline :
+- Bannière offline
+- Message "Connectez-vous une fois"
+- Impossible consulter (normal)
+
+# AVANTAGES APPROCHE COMBINÉE
+
+Cohérence :
+- Hook useNetworkStatus utilisé par cache ET UI
+- Refetch reconnexion déclenché une seule fois
+- Feedback visuel cohérent (bannière + badges)
+
+Développement :
+- Tout le système réseau d'un coup
+- Pas de dépendances entre briefs
+- Tests complets possibles immédiatement
+
+UX :
+- User comprend immédiatement (bannière)
+- Consultation offline fonctionne (cache)
+- Reconnexion fluide (sync auto)
+
+# POINTS D'ATTENTION
+
+1. Détection robuste
+   - navigator.onLine = base
+   - Ping API optionnel pour fiabilité++
+   - Balance précision/performance
+
+2. wasOffline optimisation
+   - Peut être useRef au lieu useState (évite re-render)
+   - Juste pour toast, pas besoin état React
+
+3. Animation bannière
+   - Transition CSS simple (pas framer-motion)
+   - Légèreté important pour mobile
+
+4. Cache 24h
+   - Balance fraîcheur/disponibilité offline
+   - Nettoyage automatique données obsolètes
+
+5. Queries vs Mutations
+   - Queries = cache-first, offline OK
+   - Mutations = online only, queue si offline (Brief 3)
+
+6. Taille cache localStorage
+   - Surveiller taille (limite navigateur ~5-10 MB)
+   - Produits + catégories = léger normalement
+   - Si problème futur : Stratégie LRU
+
+# VALIDATION
+
+Tests intégrés :
+
+1. Online → Charger app → Cache créé localStorage
+2. DevTools Offline → Bannière apparaît
+3. Consulter produits → Affichés depuis cache
+4. Badge "Données en cache" visible
+5. Cliquer bouton "Valider" → Désactivé
+6. DevTools Online → Toast reconnexion
+7. Queries refetch auto → Cache mis à jour
+8. Bannière disparaît → Boutons réactivés
+
+Tests terrain mobile :
+1. Zone réseau OK → Utiliser app normale
+2. Zone faible réseau → Perte connexion détectée
+3. Consultation continue fonctionne
+4. Retour zone OK → Sync automatique
+
+Critères succès combinés :
+- ✅ Détection online/offline fiable
+- ✅ Bannière visible immédiatement
+- ✅ Cache persist 24h
+- ✅ Consultation offline fonctionne
+- ✅ Reconnexion sync automatique
+- ✅ Boutons états corrects (enabled/disabled)
+- ✅ Messages UX clairs
+
+# TEMPS ESTIMÉ COMBINÉ
+
+Hook useNetworkStatus : 30 min
+Bannière OfflineBanner : 20 min
+Config cache TanStack Query : 45 min
+Stratégie queries : 30 min
+Badges cache + désactivation boutons : 1h
+Refetch reconnexion : 20 min
+Nettoyage cache : 20 min
+Tests : 30 min
+
+Total : 4h (au lieu de 3h30 séparés)
+Économie : 30 min + cohérence garantie

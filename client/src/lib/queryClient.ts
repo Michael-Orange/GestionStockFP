@@ -1,4 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+
+// Clé et durée du cache localStorage
+const CACHE_KEY = "FILTREPLANTE_QUERY_CACHE";
+const CACHE_MAX_AGE = 1000 * 60 * 60 * 24; // 24 heures
 
 export function getNetworkErrorMessage(error: Error): string {
   const message = error.message.toLowerCase();
@@ -76,8 +81,11 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      staleTime: 1000 * 60 * 5, // 5 minutes - données fraîches pendant 5 min
+      gcTime: CACHE_MAX_AGE, // 24h - gardé en cache
+      networkMode: "offlineFirst", // Utilise cache si offline
       retry: (failureCount, error) => {
         if (failureCount > 2) return false;
         const err = error as Error;
@@ -88,6 +96,7 @@ export const queryClient = new QueryClient({
       },
     },
     mutations: {
+      networkMode: "online", // Mutations nécessitent réseau
       retry: (failureCount, error) => {
         if (failureCount > 2) return false;
         const err = error as Error;
@@ -99,3 +108,42 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Persister localStorage pour cache offline
+export const queryPersister = createSyncStoragePersister({
+  storage: window.localStorage,
+  key: CACHE_KEY,
+});
+
+// Durée max du cache exportée pour PersistQueryClientProvider
+export const persistOptions = {
+  persister: queryPersister,
+  maxAge: CACHE_MAX_AGE,
+  dehydrateOptions: {
+    shouldDehydrateQuery: (query: { queryKey: readonly unknown[] }) => {
+      // Cache uniquement les queries GET de consultation
+      const key = query.queryKey[0];
+      if (typeof key !== 'string') return false;
+      const cachableRoutes = ['/api/products', '/api/categories', '/api/movements', '/api/liste', '/api/users'];
+      return cachableRoutes.some(route => key.startsWith(route));
+    },
+  },
+};
+
+// Fonction pour nettoyer le cache obsolète (> 24h)
+export function cleanOldCache(): void {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      const timestamp = data.timestamp || data.buster;
+      if (timestamp && Date.now() - timestamp > CACHE_MAX_AGE) {
+        localStorage.removeItem(CACHE_KEY);
+        console.log('[Cache] Cache obsolète nettoyé (> 24h)');
+      }
+    }
+  } catch (e) {
+    // Si erreur parsing, on nettoie le cache corrompu
+    localStorage.removeItem(CACHE_KEY);
+  }
+}
