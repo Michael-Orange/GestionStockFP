@@ -1,0 +1,181 @@
+# OBJECTIF
+Sauvegarder actions utilisateur si offline, les rejouer automatiquement à la reconnexion. Zéro perte de données.
+
+# CONTEXTE
+Brief combiné terminé : Détection + Cache ✅
+Problème : Boutons désactivés offline = frustration
+Besoin : Actions possibles offline avec queue persistante
+
+# SOLUTION
+
+Service ActionQueue (localStorage)
+Mutations détectent offline → Enqueue
+Badge compteur "X en attente"
+Reconnexion → Flush automatique
+Toast progression sync
+
+# SPÉCIFICATIONS
+
+## 1. Service ActionQueue (client/src/lib/actionQueue.ts)
+
+Structure :
+- Type PendingAction : {id, type, payload, timestamp, userId}
+- Classe ActionQueue avec queue array
+- Storage localStorage clé 'FILTREPLANTE_PENDING_ACTIONS'
+
+Méthodes :
+- add(action) : Ajoute à queue + save localStorage
+- flush() : Rejoue toutes actions + remove si succès
+- processAction(action) : Envoie requête API selon type
+- getCount() : Nombre actions en attente
+- clear() : Vide queue
+
+Types actions :
+- 'add_to_liste' → POST /api/liste/add
+- 'validate_liste' → POST /api/liste/:userId/validate
+- 'create_movement' → POST /api/movements/borrow
+- 'update_item' → PUT /api/liste/item/:itemId
+
+## 2. Modification mutations (panier.tsx, prendre.tsx, etc.)
+
+Logique enqueue :
+- Si !isOnline → actionQueue.add() + throw 'QUEUED'
+- onError : Si 'QUEUED' → toast "Action mise en attente"
+- Si isOnline → Envoie normal API
+
+Mutations concernées :
+- addToListeMutation (panier.tsx)
+- validateListeMutation (panier.tsx)
+- createMovementMutation (prendre.tsx, deposer.tsx, rendre.tsx)
+
+## 3. Flush automatique reconnexion (useNetworkStatus.ts)
+
+Event 'online' :
+- Vérifie actionQueue.getCount()
+- Si > 0 : Toast "Synchronisation X actions"
+- Appelle actionQueue.flush()
+- Si succès : Toast "✅ X actions effectuées"
+- Refetch queries après flush
+
+## 4. Badge compteur actions en attente (AppHeader)
+
+Affichage si pendingCount > 0 :
+- Badge warning avec icône Clock
+- Texte : "X en attente"
+- Polling ou event pour update count
+
+## 5. Gestion conflits
+
+Dans processAction :
+- Si produit supprimé → Skip action (pas d'erreur user)
+- Si stock insuffisant → Skip action
+- Autres erreurs → Compteur failed
+
+## 6. Limite queue
+
+Protection queue infinie :
+- Max 100 actions
+- Auto-suppression actions > 7 jours
+
+## 7. Page admin actions en attente (optionnel)
+
+Liste actions en queue :
+- Type action + timestamp
+- Bouton supprimer individuel
+- Bouton vider queue
+
+# RÉSULTAT ATTENDU
+
+Fichiers créés :
+- lib/actionQueue.ts (~150 lignes)
+- pages/pending-actions.tsx (optionnel, ~80 lignes)
+
+Fichiers modifiés :
+- pages/panier.tsx (~15 lignes logique enqueue)
+- pages/prendre.tsx, deposer.tsx, rendre.tsx (~10 lignes chacun)
+- hooks/useNetworkStatus.ts (+20 lignes flush)
+- components/app-header.tsx (+15 lignes badge)
+
+Comportement :
+- ✅ Actions offline enqueuées
+- ✅ Badge compteur visible
+- ✅ Reconnexion → Flush automatique
+- ✅ Toast progression
+- ✅ Aucune perte données
+
+Flows complets :
+
+Scenario ajout items offline :
+1. User offline, parcourt produits
+2. Ajoute 5 items → Toast "Action en attente" × 5
+3. Badge "5 en attente"
+4. Items pas encore en base
+5. Reconnexion → Flush → 5 POST envoyés
+6. Toast "✅ 5 actions effectuées"
+7. Liste refetch → Items apparaissent
+
+Scenario validation liste offline :
+1. User a panier avec 10 items
+2. Perd réseau
+3. Clique "Valider liste" → Enqueue
+4. Badge "1 en attente"
+5. Reconnexion → Validation exécutée
+6. Mouvements créés automatiquement
+
+# POINTS D'ATTENTION
+
+1. Ordre actions
+   - FIFO : First In First Out
+   - Respecte chronologie utilisateur
+
+2. Duplicate protection
+   - Si action déjà envoyée, ne pas rejouer
+   - Check avant flush
+
+3. Performance flush
+   - Actions rejoués séquentiellement
+   - Si 50 actions : Peut prendre 10-20s
+   - Toast progression rassure user
+
+4. Edge cases
+   - Action enqueuée pour produit supprimé entre temps → Skip proprement
+   - Validation liste avec items dont stock épuisé → Erreur gérée
+
+5. Limite taille localStorage
+   - 100 actions = ~50 KB max
+   - Largement sous limite navigateur
+
+# VALIDATION
+
+Tests :
+
+1. Offline → Ajouter 3 items → localStorage queue = 3
+2. Badge "3 en attente" visible
+3. Online → Flush auto → Items ajoutés base
+4. localStorage queue vidé
+5. Offline → Valider liste → Enqueue
+6. Online → Validation exécutée
+
+Tests edge cases :
+1. Ajouter item pour produit qui sera supprimé
+2. Flush → Action skippée sans erreur user
+3. Queue > 100 actions → Erreur propre
+
+Critères succès :
+- ✅ Queue persist localStorage
+- ✅ Actions enqueuées offline
+- ✅ Flush automatique
+- ✅ Badge compteur
+- ✅ Aucune perte données
+- ✅ Gestion conflits propre
+
+# TEMPS ESTIMÉ
+
+Service ActionQueue : 1h
+Modification mutations : 45 min
+Flush automatique : 30 min
+Badge compteur : 20 min
+Gestion conflits : 30 min
+Tests : 35 min
+
+Total : 3h30
