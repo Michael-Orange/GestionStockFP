@@ -30,6 +30,15 @@ The frontend is built with React and TypeScript, leveraging Vite, Wouter for rou
 -   **Automated Email System**: Integrates with Resend for sending automated notifications to Marine and Michael. Emails include validation summaries for grouped actions and alerts for new product creations. Includes robust error logging with result.error verification and uses HTML templates with inline CSS for compatibility.
 -   **Home CTA Button**: Green fixed-bottom button "Valider ma liste (X items)" displayed on home page when list contains items, providing quick access to validation flow (18 Oct 2025).
 -   **Géomembrane Soft Delete System** (21 Oct 2025): Géomembranes are automatically deactivated when stock reaches 0 (via consumption or lost items) and hidden from product listings. They are automatically reactivated when stock is deposited. This prevents duplicate géomembrane products while preserving movement history. Detection criteria: `product.longueur && product.largeur && !product.estTemplate`. All stock-mutating endpoints (liste validation, direct borrow, direct deposit) implement this logic consistently.
+-   **Offline Mode & Cache Persistence** (27 Nov 2025): Full offline support with TanStack Query cache persistence:
+    - `client/src/hooks/useNetworkStatus.ts` - Hook detecting online/offline via navigator.onLine + window events
+    - `client/src/components/offline-banner.tsx` - Fixed orange banner when offline (data-testid="banner-offline")
+    - `client/src/components/cache-badge.tsx` - Shows cache status with relative time ("Dernière sync : il y a X")
+    - `client/src/lib/queryClient.ts` - PersistQueryClientProvider with localStorage cache (key: FILTREPLANTE_QUERY_CACHE)
+    - Cache config: staleTime 5min, gcTime 24h, networkMode "offlineFirst"
+    - Mutation buttons disabled when offline with "Hors ligne" text and WifiOff icon
+    - Toast "Connexion rétablie" on reconnection with automatic data refetch
+    - GET /api/health endpoint for optional API ping verification
 
 ### System Design Choices
 -   **Database**: PostgreSQL managed via Drizzle ORM, with separate development and production databases (Neon-hosted).
